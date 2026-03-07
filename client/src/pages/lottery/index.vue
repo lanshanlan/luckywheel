@@ -17,8 +17,8 @@
     </view>
 
     <!-- 结果弹窗 -->
-    <view v-if="showResult" class="result-modal">
-      <view class="result-content">
+    <view v-if="showResult" class="result-modal" @click="closeResult">
+      <view class="result-content" @click.stop>
         <text class="result-title">{{ isWon ? '恭喜中奖！' : '很遗憾' }}</text>
         <text class="result-prize">{{ resultPrize }}</text>
         <button class="btn-close" @click="closeResult">关闭</button>
@@ -62,8 +62,9 @@ const isWon = ref(false)
 const resultPrize = ref('')
 
 onMounted(() => {
+  // 获取页面参数
   const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
+  const currentPage = pages[pages.length - 1] as any
   activityId.value = Number(currentPage.options?.id || 0)
 
   if (activityId.value) {
@@ -85,7 +86,7 @@ async function loadActivity() {
 async function checkUserDrawn() {
   try {
     const res = await checkDrawn(activityId.value)
-    if (res.data.has_drawn) {
+    if (res.data?.has_drawn) {
       uni.showToast({
         title: '您已参与过本次活动',
         icon: 'none'
@@ -105,22 +106,24 @@ async function handleSpin() {
   try {
     const res = await lotteryDraw(activityId.value)
 
-    if (res.data.is_won && res.data.prize) {
+    if (res.data?.is_won && res.data.prize) {
       const idx = prizes.value.findIndex(p => p.id === res.data.prize.id)
       resultIndex.value = idx >= 0 ? idx : -1
       isWon.value = true
       resultPrize.value = res.data.prize.name
     } else {
+      // 未中奖，指向"谢谢参与"
       const thanksIndex = prizes.value.findIndex(p => p.name.includes('谢谢'))
       resultIndex.value = thanksIndex >= 0 ? thanksIndex : 0
       isWon.value = false
       resultPrize.value = '谢谢参与，下次再接再厉！'
     }
 
+    // 等待轮盘动画完成
     setTimeout(() => {
       showResult.value = true
       spinning.value = false
-    }, 4000)
+    }, 3000)
   } catch (e: any) {
     spinning.value = false
     uni.showToast({
