@@ -47,7 +47,7 @@ onMounted(() => {
 async function loadRecords() {
   try {
     const res = await getMyRecords()
-    records.value = res.data || []
+    records.value = res || []
   } catch (e) {
     console.error('加载记录失败', e)
   }

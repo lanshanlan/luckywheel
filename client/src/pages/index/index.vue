@@ -50,7 +50,7 @@ onMounted(() => {
 async function loadActivities() {
   try {
     const res = await getActivityList()
-    activityList.value = res.data || []
+    activityList.value = res || []
   } catch (e) {
     console.error('加载活动失败', e)
   }

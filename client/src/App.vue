@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
+import { wxLogin, devLogin } from '@/api/auth'
+
+// 是否为开发环境
+const IS_DEV = true // 生产环境改为 false
 
 onLaunch(() => {
   console.log('App Launch')
+  // 应用启动时自动登录
+  autoLogin()
 })
 
 onShow(() => {
@@ -12,6 +18,49 @@ onShow(() => {
 onHide(() => {
   console.log('App Hide')
 })
+
+// 自动登录
+async function autoLogin() {
+  const token = uni.getStorageSync('token')
+  if (token) {
+    console.log('已有token，跳过登录')
+    return
+  }
+
+  try {
+    // 开发环境使用模拟登录
+    if (IS_DEV) {
+      console.log('开发环境，使用模拟登录')
+      const res = await devLogin()
+      if (res?.token) {
+        uni.setStorageSync('token', res.token)
+        console.log('模拟登录成功')
+      }
+      return
+    }
+
+    // 生产环境使用微信登录
+    const loginRes = await new Promise<UniApp.LoginRes>((resolve, reject) => {
+      uni.login({
+        success: resolve,
+        fail: reject
+      })
+    })
+
+    if (!loginRes.code) {
+      console.error('获取登录code失败')
+      return
+    }
+
+    const res = await wxLogin(loginRes.code)
+    if (res?.token) {
+      uni.setStorageSync('token', res.token)
+      console.log('登录成功')
+    }
+  } catch (e) {
+    console.error('自动登录失败', e)
+  }
+}
 </script>
 
 <style>

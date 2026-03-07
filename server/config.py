@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+from urllib.parse import quote_plus
 
 
 class Settings(BaseSettings):
@@ -26,11 +27,16 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        # 对用户名和密码进行 URL 编码，避免 @ 等特殊字符导致解析错误
+        user = quote_plus(self.DB_USER)
+        password = quote_plus(self.DB_PASSWORD)
+        return f"mysql+pymysql://{user}:{password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
-        return f"mysql+aiomysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        user = quote_plus(self.DB_USER)
+        password = quote_plus(self.DB_PASSWORD)
+        return f"mysql+aiomysql://{user}:{password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     class Config:
         env_file = ".env"

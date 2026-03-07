@@ -76,8 +76,8 @@ onMounted(() => {
 async function loadActivity() {
   try {
     const res = await getActivityDetail(activityId.value)
-    activity.value = res.data
-    prizes.value = res.data.prizes || []
+    activity.value = res
+    prizes.value = res.prizes || []
   } catch (e) {
     console.error('加载活动失败', e)
   }
@@ -86,7 +86,7 @@ async function loadActivity() {
 async function checkUserDrawn() {
   try {
     const res = await checkDrawn(activityId.value)
-    if (res.data?.has_drawn) {
+    if (res?.has_drawn) {
       uni.showToast({
         title: '您已参与过本次活动',
         icon: 'none'
@@ -106,11 +106,11 @@ async function handleSpin() {
   try {
     const res = await lotteryDraw(activityId.value)
 
-    if (res.data?.is_won && res.data.prize) {
-      const idx = prizes.value.findIndex(p => p.id === res.data.prize.id)
+    if (res?.is_won && res.prize) {
+      const idx = prizes.value.findIndex(p => p.id === res.prize.id)
       resultIndex.value = idx >= 0 ? idx : -1
       isWon.value = true
-      resultPrize.value = res.data.prize.name
+      resultPrize.value = res.prize.name
     } else {
       // 未中奖，指向"谢谢参与"
       const thanksIndex = prizes.value.findIndex(p => p.name.includes('谢谢'))
