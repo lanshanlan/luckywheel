@@ -298,3 +298,203 @@ httpx>=0.24.0
   }
 }
 ```
+
+---
+
+## 十一、启动方式
+
+### 1. 数据库启动
+
+#### 安装 MySQL 8.4 LTS
+
+**macOS (Homebrew):**
+```bash
+brew install mysql
+brew services start mysql
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install mysql-server
+sudo systemctl start mysql
+```
+
+**Windows:**
+下载 MySQL Installer: https://dev.mysql.com/downloads/installer/
+
+#### 初始化数据库
+
+```bash
+# 登录 MySQL
+mysql -u root -p
+
+# 执行初始化脚本
+source sql/init.sql
+
+# 或者直接执行
+mysql -u root -p < sql/init.sql
+```
+
+#### 验证数据库
+
+```bash
+mysql -u root -p
+```
+
+```sql
+USE lucky_wheel;
+SHOW TABLES;
+SELECT * FROM activities;
+```
+
+---
+
+### 2. 后端启动
+
+#### 创建虚拟环境
+
+```bash
+cd server
+
+# 创建虚拟环境
+python3 -m venv venv
+
+# 激活虚拟环境
+# macOS/Linux:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
+```
+
+#### 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+#### 配置环境变量
+
+创建 `server/.env` 文件：
+
+```env
+# 数据库配置
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=lucky_wheel
+
+# JWT 配置
+JWT_SECRET_KEY=your-secret-key-change-in-production
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_HOURS=168
+
+# 微信小程序配置
+WX_APPID=your_appid
+WX_SECRET=your_secret
+```
+
+#### 启动服务
+
+```bash
+# 开发模式（热重载）
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 生产模式
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+#### 验证后端
+
+- API 文档: http://localhost:8000/docs
+- 健康检查: http://localhost:8000/health
+
+---
+
+### 3. 前端启动
+
+#### 安装依赖
+
+```bash
+cd client
+npm install
+```
+
+#### 开发模式
+
+```bash
+# 微信小程序
+npm run dev:mp-weixin
+
+# H5
+npm run dev:h5
+```
+
+#### 构建生产版本
+
+```bash
+# 微信小程序
+npm run build:mp-weixin
+
+# H5
+npm run build:h5
+```
+
+#### 预览小程序
+
+1. 打开**微信开发者工具**
+2. 导入项目，选择 `client/dist/dev/mp-weixin` 目录
+3. 填写 AppID（可在 manifest.json 中配置）
+4. 点击预览或真机调试
+
+---
+
+### 4. 完整启动流程
+
+```bash
+# 1. 启动数据库
+mysql.server start  # macOS
+# 或 sudo systemctl start mysql  # Linux
+
+# 2. 初始化数据库（首次运行）
+mysql -u root -p < sql/init.sql
+
+# 3. 启动后端
+cd server
+source venv/bin/activate
+uvicorn main:app --reload --port 8000
+
+# 4. 启动前端（新终端）
+cd client
+npm install
+npm run dev:mp-weixin
+
+# 5. 微信开发者工具打开 client/dist/dev/mp-weixin
+```
+
+---
+
+### 5. 常见问题
+
+#### 数据库连接失败
+
+检查 `server/.env` 中的数据库配置是否正确：
+```bash
+mysql -u root -p -e "SELECT 1"
+```
+
+#### 前端请求后端失败
+
+1. 确认后端已启动: http://localhost:8000/health
+2. 检查 `client/src/api/index.ts` 中的 `BASE_URL` 是否正确
+3. 微信开发者工具中勾选「不校验合法域名」
+
+#### npm install 失败
+
+```bash
+# 清除缓存重试
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install
+```

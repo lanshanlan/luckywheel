@@ -3,9 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, activity, lottery, admin
 from app.utils.database import engine, Base
 
-# 创建数据库表
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="幸运轮盘抽奖系统",
     description="微信小程序抽奖后端API",
@@ -20,6 +17,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时创建数据库表"""
+    Base.metadata.create_all(bind=engine)
+
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/auth", tags=["用户认证"])

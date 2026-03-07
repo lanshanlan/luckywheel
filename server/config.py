@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     JWT_EXPIRE_HOURS: int = 24 * 7  # 7天
 
     # 微信小程序配置
-    WX_APPID: str = ""
-    WX_SECRET: str = ""
+    WX_APPID: str = "wx4a09a5a74c7710b9"
+    WX_SECRET: str = "60c6c5868f2259fe666fdee82570c1cf"
 
     @property
     def DATABASE_URL(self) -> str:
