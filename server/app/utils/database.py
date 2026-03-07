@@ -27,6 +27,7 @@ class User(Base):
     openid = Column(String(64), unique=True, index=True, nullable=False, comment="微信用户唯一标识")
     nickname = Column(String(64), comment="昵称")
     avatar_url = Column(String(255), comment="头像地址")
+    is_admin = Column(SmallInteger, default=0, comment="是否管理员：0-否，1-是")
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")
 
     # 关系

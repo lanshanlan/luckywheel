@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.utils.database import get_db, User, Activity, Prize, LotteryRecord
-from app.utils.security import get_current_user
+from app.utils.security import get_current_user, get_current_admin
 from app.schemas.schemas import (
     ActivityCreate, ActivityUpdate, ActivityResponse,
     PrizeCreate, PrizeUpdate, PrizeResponse,
@@ -16,12 +16,20 @@ from app.schemas.schemas import (
 router = APIRouter()
 
 
+# ============ 管理员验证 ============
+
+@router.get("/check")
+async def check_admin(current_user: User = Depends(get_current_admin)):
+    """检查是否为管理员"""
+    return {"is_admin": True, "user_id": current_user.id, "nickname": current_user.nickname}
+
+
 # ============ 活动管理 ============
 
 @router.post("/activities", response_model=ActivityResponse)
 async def create_activity(
     activity_data: ActivityCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """创建活动"""
@@ -42,7 +50,7 @@ async def create_activity(
 async def update_activity(
     activity_id: int,
     activity_data: ActivityUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """修改活动"""
@@ -62,7 +70,7 @@ async def update_activity(
 @router.delete("/activities/{activity_id}")
 async def delete_activity(
     activity_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """删除活动"""
@@ -80,7 +88,7 @@ async def delete_activity(
 @router.post("/prizes", response_model=PrizeResponse)
 async def create_prize(
     prize_data: PrizeCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """添加奖品"""
@@ -107,7 +115,7 @@ async def create_prize(
 async def update_prize(
     prize_id: int,
     prize_data: PrizeUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """修改奖品"""
@@ -127,7 +135,7 @@ async def update_prize(
 @router.delete("/prizes/{prize_id}")
 async def delete_prize(
     prize_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """删除奖品"""
@@ -145,7 +153,7 @@ async def delete_prize(
 @router.get("/records", response_model=List[LotteryRecordResponse])
 async def get_all_records(
     activity_id: int = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """查询所有抽奖记录（可按活动筛选）"""

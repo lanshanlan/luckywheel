@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     openid VARCHAR(64) NOT NULL UNIQUE COMMENT '微信用户唯一标识',
     nickname VARCHAR(64) COMMENT '昵称',
     avatar_url VARCHAR(255) COMMENT '头像地址',
+    is_admin TINYINT DEFAULT 0 COMMENT '是否管理员：0-否，1-是',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     INDEX idx_openid (openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
@@ -58,6 +59,10 @@ CREATE TABLE IF NOT EXISTS lottery_records (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='抽奖记录表';
 
 -- 插入测试数据
+
+-- 测试管理员用户（开发环境使用）
+INSERT INTO users (openid, nickname, is_admin) VALUES
+('dev_test_openid_001', '开发测试用户', 1);
 
 -- 测试活动
 INSERT INTO activities (title, description, status, start_time, end_time) VALUES

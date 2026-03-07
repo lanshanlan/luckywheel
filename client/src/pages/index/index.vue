@@ -1,5 +1,13 @@
 <template>
   <view class="container">
+    <!-- 顶部操作栏 -->
+    <view class="header">
+      <text class="page-title">抽奖活动</text>
+      <view v-if="isAdmin" class="admin-btn" @click="goToAdmin">
+        <text>管理后台</text>
+      </view>
+    </view>
+
     <!-- 活动列表 -->
     <view class="activity-list">
       <view
@@ -33,6 +41,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getActivityList } from '@/api/activity'
+import { checkAdmin } from '@/api/admin'
 
 interface Activity {
   id: number
@@ -42,9 +51,11 @@ interface Activity {
 }
 
 const activityList = ref<Activity[]>([])
+const isAdmin = ref(false)
 
 onMounted(() => {
   loadActivities()
+  checkAdminStatus()
 })
 
 async function loadActivities() {
@@ -53,6 +64,16 @@ async function loadActivities() {
     activityList.value = res || []
   } catch (e) {
     console.error('加载活动失败', e)
+  }
+}
+
+async function checkAdminStatus() {
+  try {
+    const res = await checkAdmin()
+    isAdmin.value = res?.is_admin || false
+  } catch (e) {
+    // 非管理员，不显示管理入口
+    isAdmin.value = false
   }
 }
 
@@ -79,12 +100,40 @@ function goToLottery(activityId: number) {
     url: `/pages/lottery/index?id=${activityId}`
   })
 }
+
+function goToAdmin() {
+  uni.navigateTo({
+    url: '/pages/admin/index'
+  })
+}
 </script>
 
 <style scoped>
 .container {
   padding: 20rpx;
   min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  padding: 0 10rpx;
+}
+
+.page-title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.admin-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 16rpx 32rpx;
+  border-radius: 30rpx;
+  font-size: 26rpx;
 }
 
 .activity-list {
