@@ -581,8 +581,8 @@ EXIT;
 
 #### 创建应用目录
 ```bash
-mkdir -p /var/www/luckywheel
-cd /var/www/luckywheel
+mkdir -p /var/www
+cd /var/www
 ```
 
 #### 上传代码（选择一种方式）
@@ -602,7 +602,7 @@ scp -r server/* root@服务器IP:/var/www/luckywheel/
 #### 创建虚拟环境并安装依赖
 ```bash
 cd /var/www/luckywheel/server
-python3.14 -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -613,16 +613,16 @@ pip install -r requirements.txt
 cat > /var/www/luckywheel/server/.env << 'EOF'
 DB_HOST=localhost
 DB_PORT=3306
-DB_USER=lucky_user
-DB_PASSWORD=你的强密码
+DB_USER=root
+DB_PASSWORD=2026@pwsql
 DB_NAME=lucky_wheel
 
-JWT_SECRET_KEY=生成一个复杂的密钥
+JWT_SECRET_KEY=96AouUZcOFDFQQ-58zmE-9QpB-FHYuCZnWdW3O_ciJs
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_HOURS=168
 
-WX_APPID=your_appid
-WX_SECRET=your_secret
+WX_APPID=wx009870b78b1f50fb
+WX_SECRET=44e6b233e1dfdfa8f4f65fc40d3338e0
 EOF
 
 # 生成安全密钥
@@ -660,6 +660,12 @@ chown -R www-data:www-data /var/www/luckywheel
 systemctl daemon-reload
 systemctl start luckywheel
 systemctl enable luckywheel
+
+# 重启服务
+systemctl restart luckywheel
+# 查看服务启动状态
+systemctl status luckywheel.service
+journalctl -xeu luckywheel.service
 ```
 
 ---
@@ -667,11 +673,16 @@ systemctl enable luckywheel
 ### 6. 配置 Nginx 反向代理
 
 ```bash
-cat > /etc/nginx/sites-available/luckywheel << 'EOF'
+cat > /etc/nginx/conf.d/default.conf << 'EOF'
 server {
-    listen 80;
-    server_name 你的域名或IP;
+    listen 443 ssl;
+    server_name  www.lanshan.tech;
 
+    # SSL 配置
+    ssl_certificate /etc/letsencrypt/live/www.lanshan.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/www.lanshan.tech/privkey.pem;
+
+    # 反向代理到 luckywheel 服务
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
@@ -679,13 +690,30 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+
+    # ACME 验证路径（用于 SSL 证书）
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+}
+# 将 HTTP 请求重定向到 HTTPS
+server {
+    listen 80;
+    server_name www.lanshan.tech;
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 EOF
 
 # 启用配置
-ln -s /etc/nginx/sites-available/luckywheel /etc/nginx/sites-enabled/
+# ln -s /etc/nginx/sites-available/luckywheel /etc/nginx/sites-enabled/
 nginx -t
 systemctl restart nginx
+systemctl status nginx
 ```
 
 ---
@@ -740,4 +768,4 @@ curl http://你的域名/
 | 查看日志 | `journalctl -u luckywheel -f` |
 | 重启服务 | `systemctl restart luckywheel` |
 | 查看状态 | `systemctl status luckywheel` |
-| 更新代码 | `cd /var/www/luckywheel/luckywheel/ && git pull && systemctl restart luckywheel` |
+| 更新代码 | `cd /var/www/luckywheel/ && git pull && systemctl restart luckywheel` |
