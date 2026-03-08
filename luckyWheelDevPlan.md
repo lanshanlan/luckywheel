@@ -740,4 +740,4 @@ curl http://你的域名/
 | 查看日志 | `journalctl -u luckywheel -f` |
 | 重启服务 | `systemctl restart luckywheel` |
 | 查看状态 | `systemctl status luckywheel` |
-| 更新代码 | `git pull && systemctl restart luckywheel` |
+| 更新代码 | `cd /var/www/luckywheel/luckywheel/ && git pull && systemctl restart luckywheel` |

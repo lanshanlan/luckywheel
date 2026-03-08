@@ -13,11 +13,11 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "root"
-    DB_PASSWORD: str = "your_password"
+    DB_PASSWORD: str = "2026@pwsql"
     DB_NAME: str = "lucky_wheel"
 
     # JWT 配置
-    JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
+    JWT_SECRET_KEY: str = "96AouUZcOFDFQQ-58zmE-9QpB-FHYuCZnWdW3O_ciJs"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_HOURS: int = 24 * 7  # 7天
 
