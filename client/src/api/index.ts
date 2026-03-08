@@ -1,5 +1,6 @@
 // 请求封装
-const BASE_URL = 'http://localhost:8000' // 开发环境，生产环境需要修改
+// const BASE_URL = 'http://localhost:8000' // 开发环境
+const BASE_URL = 'https://www.lanshan.tech' // 生产环境
 
 interface RequestOptions {
   url: string

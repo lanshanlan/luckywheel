@@ -498,3 +498,246 @@ npm cache clean --force
 rm -rf node_modules package-lock.json
 npm install
 ```
+
+---
+
+## 十二、阿里云服务器部署流程
+
+### 1. 服务器准备
+
+#### 购买阿里云 ECS 服务器
+- 选择配置：建议 2核4G 起
+- 操作系统：Ubuntu 22.04 或 CentOS 7/8
+- 购买时开放安全组端口：22(SSH)、80(HTTP)、443(HTTPS)、3306(MySQL)
+
+#### 连接服务器
+```bash
+ssh root@你的服务器IP
+```
+
+---
+
+### 2. 环境安装
+
+#### 更新系统
+```bash
+# Ubuntu
+apt update && apt upgrade -y
+
+# CentOS
+yum update -y
+```
+
+#### 安装 Python 3.14
+```bash
+# Ubuntu
+apt install -y python3.14 python3.14-venv python3-pip
+
+# 或使用 pyenv 安装（推荐，更灵活）
+curl https://pyenv.run | bash
+pyenv install 3.14.0
+pyenv global 3.14.0
+```
+
+#### 安装 MySQL 8.4
+```bash
+# Ubuntu
+apt install -y mysql-server mysql-client
+
+# 启动并设置开机自启
+systemctl start mysql
+systemctl enable mysql
+
+# 安全配置
+mysql_secure_installation
+```
+
+#### 安装 Nginx
+```bash
+apt install -y nginx
+systemctl start nginx
+systemctl enable nginx
+```
+
+---
+
+### 3. 数据库配置
+
+```bash
+# 登录 MySQL
+mysql -u root -p
+
+# 创建数据库和用户
+CREATE DATABASE lucky_wheel CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'lucky_user'@'localhost' IDENTIFIED BY '你的强密码';
+GRANT ALL PRIVILEGES ON lucky_wheel.* TO 'lucky_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+---
+
+### 4. 部署后端代码
+
+#### 创建应用目录
+```bash
+mkdir -p /var/www/luckywheel
+cd /var/www/luckywheel
+```
+
+#### 上传代码（选择一种方式）
+
+**方式一：Git 拉取**
+```bash
+apt install -y git
+git clone 你的仓库地址 .
+```
+
+**方式二：SCP 上传**
+```bash
+# 在本地执行
+scp -r server/* root@服务器IP:/var/www/luckywheel/
+```
+
+#### 创建虚拟环境并安装依赖
+```bash
+cd /var/www/luckywheel/server
+python3.14 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+#### 配置环境变量
+```bash
+# 创建生产环境配置
+cat > /var/www/luckywheel/server/.env << 'EOF'
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=lucky_user
+DB_PASSWORD=你的强密码
+DB_NAME=lucky_wheel
+
+JWT_SECRET_KEY=生成一个复杂的密钥
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_HOURS=168
+
+WX_APPID=your_appid
+WX_SECRET=your_secret
+EOF
+
+# 生成安全密钥
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+---
+
+### 5. 配置 Systemd 服务
+
+```bash
+cat > /etc/systemd/system/luckywheel.service << 'EOF'
+[Unit]
+Description=Lucky Wheel FastAPI Application
+After=network.target mysql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/luckywheel/server
+Environment="PATH=/var/www/luckywheel/server/venv/bin"
+ExecStart=/var/www/luckywheel/server/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 设置权限
+chown -R www-data:www-data /var/www/luckywheel
+
+# 启动服务
+systemctl daemon-reload
+systemctl start luckywheel
+systemctl enable luckywheel
+```
+
+---
+
+### 6. 配置 Nginx 反向代理
+
+```bash
+cat > /etc/nginx/sites-available/luckywheel << 'EOF'
+server {
+    listen 80;
+    server_name 你的域名或IP;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+
+# 启用配置
+ln -s /etc/nginx/sites-available/luckywheel /etc/nginx/sites-enabled/
+nginx -t
+systemctl restart nginx
+```
+
+---
+
+### 7. 配置 HTTPS（推荐）
+
+```bash
+# 安装 Certbot
+apt install -y certbot python3-certbot-nginx
+
+# 申请证书
+certbot --nginx -d 你的域名
+
+# 自动续期
+systemctl enable certbot.timer
+```
+
+---
+
+### 8. 防火墙配置
+
+```bash
+# Ubuntu (UFW)
+ufw allow 22
+ufw allow 80
+ufw allow 443
+ufw enable
+
+# 阿里云安全组也要开放这些端口
+```
+
+---
+
+### 9. 验证部署
+
+```bash
+# 检查服务状态
+systemctl status luckywheel
+systemctl status nginx
+
+# 测试 API
+curl http://localhost:8000/health
+curl http://你的域名/
+```
+
+---
+
+### 10. 常用运维命令
+
+| 操作 | 命令 |
+|------|------|
+| 查看日志 | `journalctl -u luckywheel -f` |
+| 重启服务 | `systemctl restart luckywheel` |
+| 查看状态 | `systemctl status luckywheel` |
+| 更新代码 | `git pull && systemctl restart luckywheel` |
