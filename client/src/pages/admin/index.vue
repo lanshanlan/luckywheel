@@ -63,25 +63,43 @@
 
     <!-- 创建/编辑活动弹窗 -->
     <view v-if="showCreateActivity" class="modal" @click="showCreateActivity = false">
-      <view class="modal-content" @click.stop>
-        <text class="modal-title">{{ editingActivity ? '编辑活动' : '创建活动' }}</text>
-        <view class="form-item">
-          <text class="label">活动标题</text>
-          <input v-model="activityForm.title" class="input" placeholder="请输入活动标题" />
+      <view class="modal-content activity-modal" @click.stop>
+        <!-- 头部 -->
+        <view class="activity-modal-header">
+          <text class="activity-modal-title">{{ editingActivity ? '编辑活动' : '创建活动' }}</text>
         </view>
-        <view class="form-item">
-          <text class="label">活动描述</text>
-          <textarea v-model="activityForm.description" class="textarea" placeholder="请输入活动描述" />
+
+        <!-- 表单区域 -->
+        <view class="activity-form-section">
+          <view class="activity-form-row">
+            <view class="activity-form-group">
+              <text class="activity-form-label">活动标题 <text class="required">*</text></text>
+              <input v-model="activityForm.title" class="activity-form-input" placeholder="请输入活动标题" />
+            </view>
+          </view>
+          <view class="activity-form-row">
+            <view class="activity-form-group">
+              <text class="activity-form-label">活动描述</text>
+              <textarea v-model="activityForm.description" class="activity-form-textarea" placeholder="请输入活动描述（选填）" />
+            </view>
+          </view>
+          <view class="activity-form-row">
+            <view class="activity-form-group">
+              <text class="activity-form-label">活动状态</text>
+              <picker :value="activityForm.status" :range="statusOptions" range-key="label" @change="onStatusChange">
+                <view class="activity-picker">
+                  <text>{{ statusOptions[activityForm.status].label }}</text>
+                  <text class="picker-arrow">▼</text>
+                </view>
+              </picker>
+            </view>
+          </view>
         </view>
-        <view class="form-item">
-          <text class="label">活动状态</text>
-          <picker :value="activityForm.status" :range="statusOptions" range-key="label" @change="onStatusChange">
-            <view class="picker">{{ statusOptions[activityForm.status].label }}</view>
-          </picker>
-        </view>
-        <view class="modal-actions">
-          <button class="btn-cancel" @click="closeActivityModal">取消</button>
-          <button class="btn-confirm" @click="handleSaveActivity">保存</button>
+
+        <!-- 底部按钮 -->
+        <view class="activity-modal-footer">
+          <button class="btn-activity-cancel" @click="closeActivityModal">取消</button>
+          <button class="btn-activity-confirm" @click="handleSaveActivity">保存</button>
         </view>
       </view>
     </view>
@@ -89,33 +107,81 @@
     <!-- 奖品管理弹窗 -->
     <view v-if="showPrizeModal" class="modal" @click="showPrizeModal = false">
       <view class="modal-content prize-modal" @click.stop>
-        <text class="modal-title">{{ currentActivity?.title }} - 奖品管理</text>
+        <!-- 头部 -->
+        <view class="prize-modal-header">
+          <text class="prize-modal-title">{{ currentActivity?.title }}</text>
+          <text class="prize-modal-subtitle">奖品管理</text>
+        </view>
 
-        <!-- 添加奖品 -->
-        <view class="prize-form">
-          <input v-model="prizeForm.name" class="input" placeholder="奖品名称" />
-          <input v-model="prizeForm.probability" class="input" type="text" placeholder="概率(如0.1表示10%)" />
-          <input v-model.number="prizeForm.stock" class="input" type="number" placeholder="库存" />
-          <button class="btn-add" @click="handleAddPrize">添加奖品</button>
+        <!-- 添加奖品表单 -->
+        <view class="prize-form-section">
+          <view class="section-title">添加奖品</view>
+          <view class="prize-form-row">
+            <view class="form-group name-group">
+              <text class="form-label">奖品名称</text>
+              <input v-model="prizeForm.name" class="form-input" placeholder="请输入奖品名称" />
+            </view>
+          </view>
+          <view class="prize-form-row two-col">
+            <view class="form-group">
+              <text class="form-label">中奖概率 <text class="label-hint">(0-1之间)</text></text>
+              <input v-model="prizeForm.probability" class="form-input" type="text" placeholder="如 0.1" />
+            </view>
+            <view class="form-group">
+              <text class="form-label">库存数量</text>
+              <input v-model.number="prizeForm.stock" class="form-input" type="number" placeholder="库存" />
+            </view>
+          </view>
+          <button class="btn-add-prize" @click="handleAddPrize">+ 添加奖品</button>
         </view>
 
         <!-- 奖品列表 -->
-        <view class="prize-list">
-          <view v-for="prize in prizes" :key="prize.id" class="prize-item">
-            <text class="prize-name">{{ prize.name }}</text>
-            <text class="prize-info">概率: {{ prize.probability }} | 库存: {{ prize.stock }}</text>
-            <text class="delete-btn" @click="handleDeletePrize(prize.id)">删除</text>
+        <view class="prize-list-section">
+          <view class="section-header">
+            <text class="section-title">奖品列表</text>
+            <text class="prize-count">{{ prizes.length }} 个奖品</text>
+          </view>
+          <view v-if="prizes.length === 0" class="empty-list">
+            <text class="empty-icon">🎁</text>
+            <text class="empty-text">暂无奖品，快去添加吧</text>
+          </view>
+          <view v-else class="prize-cards">
+            <view v-for="(prize, index) in prizes" :key="prize.id" class="prize-card">
+              <view class="prize-card-left">
+                <view class="prize-index" :style="{ backgroundColor: getPrizeColor(index) }">{{ index + 1 }}</view>
+                <view class="prize-info-wrap">
+                  <text class="prize-card-name">{{ prize.name }}</text>
+                  <view class="prize-card-meta">
+                    <text class="meta-item">
+                      <text class="meta-value">{{ (prize.probability * 100).toFixed(2) }}%</text>
+                      <text class="meta-label">概率</text>
+                    </text>
+                    <text class="meta-divider">|</text>
+                    <text class="meta-item">
+                      <text class="meta-value">{{ prize.stock }}</text>
+                      <text class="meta-label">库存</text>
+                    </text>
+                  </view>
+                </view>
+              </view>
+              <view class="delete-btn-wrap" @click="handleDeletePrize(prize.id)">
+                <text class="delete-icon">×</text>
+              </view>
+            </view>
           </view>
         </view>
 
-        <button class="btn-close" @click="showPrizeModal = false">关闭</button>
+        <view class="prize-modal-footer">
+          <button class="btn-close-modal" @click="showPrizeModal = false">完成</button>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import {
   checkAdmin,
   createActivity,
@@ -182,7 +248,7 @@ const statusOptions = [
   { label: '已结束', value: 2 }
 ]
 
-onMounted(() => {
+onShow(() => {
   checkAdminPermission()
   loadData()
 })
@@ -241,6 +307,17 @@ function getStatusText(status: number) {
 function formatTime(time: string) {
   const date = new Date(time)
   return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// 奖品颜色配置
+const prizeColors = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+  '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+  '#FFB6C1', '#87CEEB', '#DDA0DD', '#F0E68C'
+]
+
+function getPrizeColor(index: number): string {
+  return prizeColors[index % prizeColors.length]
 }
 
 function onStatusChange(e: any) {
@@ -500,7 +577,7 @@ async function handleDeletePrize(id: number) {
   color: #999;
 }
 
-/* 弹窗样式 */
+/* 弹窗基础样式 */
 .modal {
   position: fixed;
   top: 0;
@@ -517,138 +594,421 @@ async function handleDeletePrize(id: number) {
 .modal-content {
   background: #fff;
   border-radius: 20rpx;
-  padding: 40rpx;
   width: 90%;
   max-height: 80vh;
+  overflow: hidden;
+}
+
+/* 创建/编辑活动弹窗样式 */
+.activity-modal {
+  max-height: 85vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 弹窗头部 */
+.activity-modal-header {
+  background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+  padding: 40rpx 30rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.activity-modal-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* 表单区域 */
+.activity-form-section {
+  padding: 30rpx;
+  background: #FAFAFA;
+  flex: 1;
   overflow-y: auto;
 }
 
-.modal-title {
-  display: block;
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 30rpx;
-  text-align: center;
-}
-
-.form-item {
+.activity-form-row {
   margin-bottom: 24rpx;
 }
 
-.label {
+.activity-form-row:last-child {
+  margin-bottom: 0;
+}
+
+.activity-form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-form-label {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 12rpx;
+}
+
+.activity-form-label .required {
+  color: #FF6B35;
+}
+
+.activity-form-input {
+  height: 84rpx;
+  padding: 0 24rpx;
+  background: #fff;
+  border: 2rpx solid #E0E0E0;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.activity-form-input:focus {
+  border-color: #FF6B35;
+}
+
+.activity-form-textarea {
+  width: 100%;
+  height: 160rpx;
+  padding: 20rpx 24rpx;
+  background: #fff;
+  border: 2rpx solid #E0E0E0;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.activity-form-textarea:focus {
+  border-color: #FF6B35;
+}
+
+.activity-picker {
+  height: 84rpx;
+  padding: 0 24rpx;
+  background: #fff;
+  border: 2rpx solid #E0E0E0;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.picker-arrow {
+  font-size: 20rpx;
+  color: #999;
+}
+
+/* 弹窗底部 */
+.activity-modal-footer {
+  padding: 20rpx 30rpx 40rpx;
+  background: #fff;
+  border-top: 1rpx solid #EEEEEE;
+  display: flex;
+  gap: 20rpx;
+  flex-shrink: 0;
+}
+
+.btn-activity-cancel,
+.btn-activity-confirm {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-activity-cancel {
+  background: #F5F5F5;
+  color: #666;
+}
+
+.btn-activity-confirm {
+  background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+  color: #fff;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 53, 0.3);
+}
+
+.btn-activity-confirm:active {
+  opacity: 0.9;
+}
+
+/* 奖品管理弹窗样式 */
+.prize-modal {
+  max-height: 85vh;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 弹窗头部 */
+.prize-modal-header {
+  background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+  padding: 40rpx 30rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.prize-modal-title {
   display: block;
-  font-size: 28rpx;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8rpx;
+}
+
+.prize-modal-subtitle {
+  display: block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 表单区域 */
+.prize-form-section {
+  padding: 30rpx;
+  background: #FAFAFA;
+  border-bottom: 1rpx solid #EEEEEE;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24rpx;
+}
+
+.prize-form-row {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.prize-form-row.two-col {
+  flex-direction: row;
+}
+
+.prize-form-row.two-col .form-group {
+  flex: 1;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.name-group {
+  width: 100%;
+}
+
+.form-label {
+  font-size: 24rpx;
   color: #666;
   margin-bottom: 10rpx;
 }
 
-.input, .textarea {
-  width: 100%;
-  padding: 20rpx;
-  border: 1rpx solid #ddd;
-  border-radius: 10rpx;
+.label-hint {
+  font-size: 20rpx;
+  color: #999;
+  font-weight: normal;
+}
+
+.form-input {
+  height: 76rpx;
+  padding: 0 24rpx;
+  background: #fff;
+  border: 2rpx solid #E0E0E0;
+  border-radius: 12rpx;
   font-size: 28rpx;
+  color: #333;
   box-sizing: border-box;
 }
 
-.textarea {
-  height: 150rpx;
+.form-input:focus {
+  border-color: #FF6B35;
 }
 
-.picker {
-  padding: 20rpx;
-  border: 1rpx solid #ddd;
-  border-radius: 10rpx;
-  font-size: 28rpx;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 20rpx;
-  margin-top: 40rpx;
-}
-
-.btn-cancel, .btn-confirm {
-  flex: 1;
-  padding: 24rpx;
-  border-radius: 10rpx;
-  font-size: 30rpx;
-  border: none;
-}
-
-.btn-cancel {
-  background: #f5f5f5;
-  color: #666;
-}
-
-.btn-confirm {
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
-  color: #fff;
-}
-
-/* 奖品管理 */
-.prize-modal {
-  max-height: 85vh;
-}
-
-.prize-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  margin-bottom: 30rpx;
-}
-
-.prize-form .input {
-  flex: 1;
-  min-width: 150rpx;
-}
-
-.btn-add {
+.btn-add-prize {
+  width: 100%;
+  height: 80rpx;
   background: #FF6B35;
   color: #fff;
-  font-size: 26rpx;
-  padding: 16rpx 24rpx;
-  border-radius: 8rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  border-radius: 12rpx;
   border: none;
+  margin-top: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.prize-list {
-  margin-bottom: 30rpx;
+.btn-add-prize:active {
+  opacity: 0.9;
 }
 
-.prize-item {
+/* 奖品列表区域 */
+.prize-list-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24rpx 30rpx;
+  background: #fff;
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20rpx;
-  background: #f9f9f9;
-  border-radius: 10rpx;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
 }
 
-.prize-name {
-  font-size: 28rpx;
-  color: #333;
-}
-
-.prize-info {
+.prize-count {
   font-size: 24rpx;
   color: #999;
 }
 
-.delete-btn {
-  font-size: 26rpx;
-  color: #f56c6c;
+.empty-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0;
 }
 
-.btn-close {
-  width: 100%;
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #bbb;
+}
+
+/* 奖品卡片列表 */
+.prize-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.prize-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 24rpx;
-  background: #f5f5f5;
-  border-radius: 10rpx;
+  background: #F8F9FA;
+  border-radius: 16rpx;
+  border: 1rpx solid #F0F0F0;
+}
+
+.prize-card-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.prize-index {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.prize-info-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.prize-card-name {
+  display: block;
   font-size: 30rpx;
-  border: none;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prize-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.meta-item {
+  font-size: 24rpx;
+}
+
+.meta-value {
+  color: #FF6B35;
+  font-weight: 600;
+}
+
+.meta-label {
+  color: #999;
+  margin-left: 4rpx;
+}
+
+.meta-divider {
+  color: #ddd;
+  font-size: 22rpx;
+}
+
+.delete-btn-wrap {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFEEEE;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.delete-icon {
+  font-size: 40rpx;
+  color: #FF6B6B;
+  line-height: 1;
+}
+
+/* 弹窗底部 */
+.prize-modal-footer {
+  padding: 20rpx 30rpx 40rpx;
+  background: #fff;
+  border-top: 1rpx solid #EEEEEE;
+  flex-shrink: 0;
+}
+
+.btn-close-modal {
+  width: 100%;
+  height: 88rpx;
+  background: #F5F5F5;
   color: #666;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 16rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

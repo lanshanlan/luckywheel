@@ -25,7 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getMyRecords } from '@/api/lottery'
 
 interface Record {
@@ -40,7 +41,7 @@ interface Record {
 
 const records = ref<Record[]>([])
 
-onMounted(() => {
+onShow(() => {
   loadRecords()
 })
 

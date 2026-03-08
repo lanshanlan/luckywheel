@@ -10,7 +10,8 @@
       "Bash(mysql -u root -p123456 lucky_wheel -e \"DESCRIBE users;\")",
       "Bash(/usr/local/mysql/bin/mysql --version)",
       "Bash(/opt/homebrew/bin/mysql --version)",
-      "Bash(/usr/local/mysql/bin/mysql -u root -p123456 lucky_wheel -e \"ALTER TABLE users ADD COLUMN is_admin SMALLINT DEFAULT 0 COMMENT ''是否管理员''; UPDATE users SET is_admin = 1 WHERE openid = ''dev_test_openid_001'';\")"
+      "Bash(/usr/local/mysql/bin/mysql -u root -p123456 lucky_wheel -e \"ALTER TABLE users ADD COLUMN is_admin SMALLINT DEFAULT 0 COMMENT ''是否管理员''; UPDATE users SET is_admin = 1 WHERE openid = ''dev_test_openid_001'';\")",
+      "Bash(lsof -i :8000)"
     ]
   }
 }

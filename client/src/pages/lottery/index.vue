@@ -64,7 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import LuckyWheel from '@/components/LuckyWheel/LuckyWheel.vue'
 import { getActivityDetail } from '@/api/activity'
 import { lotteryDraw, checkDrawn } from '@/api/lottery'
@@ -97,7 +98,7 @@ const showResult = ref(false)
 const isWon = ref(false)
 const resultPrize = ref('')
 
-onMounted(() => {
+onShow(() => {
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1] as any
   activityId.value = Number(currentPage.options?.id || 0)

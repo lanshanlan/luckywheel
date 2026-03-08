@@ -124,6 +124,10 @@ async def delete_activity(
     if not activity:
         raise HTTPException(status_code=404, detail="活动不存在")
 
+    # 先删除相关的抽奖记录（因为没有级联删除）
+    db.query(LotteryRecord).filter(LotteryRecord.activity_id == activity_id).delete()
+    # 奖品会自动级联删除（数据库设置了 ON DELETE CASCADE）
+
     db.delete(activity)
     db.commit()
     return {"success": True, "message": "活动已删除"}

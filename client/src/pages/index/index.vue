@@ -39,7 +39,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getActivityList } from '@/api/activity'
 import { checkAdmin } from '@/api/admin'
 
@@ -53,7 +54,7 @@ interface Activity {
 const activityList = ref<Activity[]>([])
 const isAdmin = ref(false)
 
-onMounted(() => {
+onShow(() => {
   loadActivities()
   checkAdminStatus()
 })
