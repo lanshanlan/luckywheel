@@ -3,12 +3,12 @@
 """
 import random
 from decimal import Decimal
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from app.utils.database import Prize
 
 
-def draw_prize(prizes: List[Prize]) -> Optional[Prize]:
+def draw_prize(prizes: List[Prize]) -> Tuple[Optional[Prize], bool]:
     """
     按概率随机抽取奖品
 
@@ -21,10 +21,13 @@ def draw_prize(prizes: List[Prize]) -> Optional[Prize]:
         prizes: 奖品列表，每个奖品有 probability 属性
 
     Returns:
-        中奖奖品或None（未中奖）
+        (中奖奖品, 是否真正中奖)
+        - 如果是普通奖品，返回 (prize, True)
+        - 如果是"谢谢惠顾"奖品，返回 (prize, False)
+        - 如果没有匹配的奖品，返回 (None, False)
     """
     if not prizes:
-        return None
+        return None, False
 
     # 生成 0-1 的随机数
     rand = random.random()
@@ -37,10 +40,17 @@ def draw_prize(prizes: List[Prize]) -> Optional[Prize]:
         if rand < float(cumulative):
             # 检查库存
             if prize.stock > 0:
-                return prize
+                # 判断是否为"谢谢惠顾"类奖品
+                is_thanks = '谢谢' in prize.name or '惠顾' in prize.name
+                return prize, not is_thanks
 
-    # 未中奖
-    return None
+    # 未匹配到任何奖品，返回最后一个（通常是谢谢惠顾）
+    last_prize = prizes[-1]
+    if last_prize.stock > 0:
+        is_thanks = '谢谢' in last_prize.name or '惠顾' in last_prize.name
+        return last_prize, not is_thanks
+
+    return None, False
 
 
 def calculate_win_rate(prizes: List[Prize]) -> dict:

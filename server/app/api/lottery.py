@@ -54,20 +54,20 @@ async def lottery_draw(
     prizes = db.query(Prize).filter(
         Prize.activity_id == request.activity_id,
         Prize.stock > 0
-    ).all()
+    ).order_by(Prize.sort_order).all()
 
     # 执行抽奖
-    won_prize = draw_prize(prizes)
+    won_prize, is_won = draw_prize(prizes)
 
     # 创建抽奖记录
     record = LotteryRecord(
         user_id=current_user.id,
         activity_id=request.activity_id,
         prize_id=won_prize.id if won_prize else None,
-        is_won=1 if won_prize else 0
+        is_won=1 if is_won else 0
     )
 
-    # 扣减库存
+    # 扣减库存（谢谢惠顾也要扣减）
     if won_prize:
         won_prize.stock -= 1
 
@@ -76,9 +76,9 @@ async def lottery_draw(
 
     return DrawResponse(
         success=True,
-        is_won=bool(won_prize),
+        is_won=is_won,
         prize=PrizeResponse.model_validate(won_prize) if won_prize else None,
-        message="恭喜中奖！" if won_prize else "很遗憾，未中奖"
+        message="恭喜中奖！" if is_won else "很遗憾，未中奖"
     )
 
 

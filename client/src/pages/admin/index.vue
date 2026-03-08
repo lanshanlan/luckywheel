@@ -94,7 +94,7 @@
         <!-- 添加奖品 -->
         <view class="prize-form">
           <input v-model="prizeForm.name" class="input" placeholder="奖品名称" />
-          <input v-model.number="prizeForm.probability" class="input" type="digit" placeholder="概率(0-1)" />
+          <input v-model="prizeForm.probability" class="input" type="text" placeholder="概率(如0.1表示10%)" />
           <input v-model.number="prizeForm.stock" class="input" type="number" placeholder="库存" />
           <button class="btn-add" @click="handleAddPrize">添加奖品</button>
         </view>
@@ -171,7 +171,7 @@ const activityForm = ref({
 
 const prizeForm = ref({
   name: '',
-  probability: 0.1,
+  probability: '',
   stock: 1,
   sort_order: 0
 })
@@ -323,16 +323,23 @@ async function handleAddPrize() {
   }
   if (!currentActivity.value) return
 
+  // 将概率字符串转换为数字
+  const probability = parseFloat(prizeForm.value.probability)
+  if (isNaN(probability) || probability < 0 || probability > 1) {
+    uni.showToast({ title: '请输入有效的概率值(0-1)', icon: 'none' })
+    return
+  }
+
   try {
     await createPrize({
       activity_id: currentActivity.value.id,
       name: prizeForm.value.name,
-      probability: prizeForm.value.probability,
+      probability: probability,
       stock: prizeForm.value.stock,
       sort_order: prizeForm.value.sort_order
     })
     uni.showToast({ title: '添加成功', icon: 'success' })
-    prizeForm.value = { name: '', probability: 0.1, stock: 1, sort_order: 0 }
+    prizeForm.value = { name: '', probability: '', stock: 1, sort_order: 0 }
 
     // 刷新奖品列表
     const res = await getActivityDetail(currentActivity.value.id)

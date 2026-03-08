@@ -148,16 +148,20 @@ async function handleSpin() {
   try {
     const res = await lotteryDraw(activityId.value)
 
-    if (res?.is_won && res.prize) {
+    if (res?.prize) {
+      // 找到奖品在轮盘中的索引位置
       const idx = prizes.value.findIndex(p => p.id === res.prize.id)
       resultIndex.value = idx >= 0 ? idx : 0
-      isWon.value = true
+
+      // 根据后端返回的 is_won 判断是否真正中奖
+      isWon.value = res.is_won
       resultPrize.value = res.prize.name
     } else {
-      const thanksIndex = prizes.value.findIndex(p => p.name.includes('谢谢'))
+      // 异常情况，没有返回奖品，定位到谢谢惠顾
+      const thanksIndex = prizes.value.findIndex(p => p.name.includes('谢谢') || p.name.includes('惠顾'))
       resultIndex.value = thanksIndex >= 0 ? thanksIndex : 0
       isWon.value = false
-      resultPrize.value = '谢谢参与，下次再接再厉！'
+      resultPrize.value = '谢谢惠顾'
     }
 
     // 动画持续4秒后显示结果
