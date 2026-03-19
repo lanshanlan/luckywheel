@@ -44,6 +44,7 @@ class Activity(Base):
     status = Column(SmallInteger, default=1, comment="状态：0-未开始，1-进行中，2-已结束")
     start_time = Column(DateTime, comment="开始时间")
     end_time = Column(DateTime, comment="结束时间")
+    draw_interval_days = Column(Integer, default=1, comment="抽奖间隔天数")
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")
 
     # 关系
@@ -77,6 +78,7 @@ class LotteryRecord(Base):
     activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False, comment="活动ID")
     prize_id = Column(Integer, ForeignKey("prizes.id"), nullable=True, comment="中奖奖品ID")
     is_won = Column(SmallInteger, default=0, comment="是否中奖：0-未中奖，1-中奖")
+    round_number = Column(Integer, default=1, comment="第几轮抽奖")
     created_at = Column(DateTime, default=datetime.now, comment="抽奖时间")
 
     # 关系

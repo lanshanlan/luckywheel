@@ -1,6 +1,7 @@
 """
 管理接口 - 活动和奖品管理
 """
+from datetime import datetime
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -67,12 +68,18 @@ async def create_activity(
     db: Session = Depends(get_db)
 ):
     """创建活动，自动添加"谢谢惠顾"奖品"""
+    # 默认开始时间为当天
+    start_time = activity_data.start_time
+    if not start_time:
+        start_time = datetime.now()
+
     activity = Activity(
         title=activity_data.title,
         description=activity_data.description,
         status=activity_data.status,
-        start_time=activity_data.start_time,
-        end_time=activity_data.end_time
+        start_time=start_time,
+        end_time=activity_data.end_time,
+        draw_interval_days=activity_data.draw_interval_days or 1
     )
     db.add(activity)
     db.commit()
@@ -284,6 +291,7 @@ async def get_all_records(
             prize_id=record.prize_id,
             prize_name=prize.name if prize else None,
             is_won=bool(record.is_won),
+            round_number=record.round_number or 1,
             created_at=record.created_at
         ))
 

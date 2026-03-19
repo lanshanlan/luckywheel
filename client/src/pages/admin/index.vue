@@ -94,6 +94,23 @@
               </picker>
             </view>
           </view>
+          <view class="activity-form-row">
+            <view class="activity-form-group">
+              <text class="activity-form-label">活动开始时间</text>
+              <picker mode="date" :value="activityForm.start_time" @change="onStartDateChange">
+                <view class="activity-picker">
+                  <text>{{ activityForm.start_time || '请选择日期' }}</text>
+                  <text class="picker-arrow">▼</text>
+                </view>
+              </picker>
+            </view>
+          </view>
+          <view class="activity-form-row">
+            <view class="activity-form-group">
+              <text class="activity-form-label">抽奖间隔（天）</text>
+              <input v-model.number="activityForm.draw_interval_days" class="activity-form-input" type="number" placeholder="默认1天" />
+            </view>
+          </view>
         </view>
 
         <!-- 底部按钮 -->
@@ -198,6 +215,9 @@ interface Activity {
   title: string
   description: string
   status: number
+  start_time?: string
+  end_time?: string
+  draw_interval_days?: number
   prizes?: Prize[]
 }
 
@@ -232,7 +252,9 @@ const currentActivity = ref<Activity | null>(null)
 const activityForm = ref({
   title: '',
   description: '',
-  status: 1
+  status: 1,
+  start_time: '',
+  draw_interval_days: 1
 })
 
 const prizeForm = ref({
@@ -324,12 +346,18 @@ function onStatusChange(e: any) {
   activityForm.value.status = e.detail.value
 }
 
+function onStartDateChange(e: any) {
+  activityForm.value.start_time = e.detail.value
+}
+
 function editActivity(activity: Activity) {
   editingActivity.value = activity
   activityForm.value = {
     title: activity.title,
     description: activity.description || '',
-    status: activity.status
+    status: activity.status,
+    start_time: activity.start_time ? activity.start_time.split('T')[0] : '',
+    draw_interval_days: activity.draw_interval_days || 1
   }
   showCreateActivity.value = true
 }
@@ -337,7 +365,7 @@ function editActivity(activity: Activity) {
 function closeActivityModal() {
   showCreateActivity.value = false
   editingActivity.value = null
-  activityForm.value = { title: '', description: '', status: 1 }
+  activityForm.value = { title: '', description: '', status: 1, start_time: '', draw_interval_days: 1 }
 }
 
 async function handleSaveActivity() {

@@ -40,6 +40,7 @@ class ActivityBase(BaseModel):
     status: int = 1
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    draw_interval_days: int = 1
 
 
 class ActivityCreate(ActivityBase):
@@ -52,6 +53,7 @@ class ActivityUpdate(BaseModel):
     status: Optional[int] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    draw_interval_days: Optional[int] = None
 
 
 class ActivityResponse(ActivityBase):
@@ -114,15 +116,22 @@ class LotteryRecordResponse(BaseModel):
     prize_id: Optional[int] = None
     prize_name: Optional[str] = None
     is_won: bool
+    round_number: int = 1
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
+class RoundInfo(BaseModel):
+    current_round: int  # 当前轮次
+    next_round_date: Optional[str] = None  # 下轮抽奖日期
+
+
 class CheckResponse(BaseModel):
     has_drawn: bool
     record: Optional[LotteryRecordResponse] = None
+    round_info: Optional[RoundInfo] = None
 
 
 # 更新forward reference

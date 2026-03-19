@@ -1,4 +1,5 @@
 import random
+from datetime import datetime, timedelta
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -7,11 +8,34 @@ from typing import List
 from app.utils.database import get_db, User, Activity, Prize, LotteryRecord
 from app.utils.security import get_current_user
 from app.schemas.schemas import (
-    DrawRequest, DrawResponse, LotteryRecordResponse, CheckResponse, PrizeResponse
+    DrawRequest, DrawResponse, LotteryRecordResponse, CheckResponse, PrizeResponse, RoundInfo
 )
 from app.services.lottery_service import draw_prize
 
 router = APIRouter()
+
+
+def get_current_round(activity: Activity) -> int:
+    """计算当前轮次"""
+    if not activity.start_time:
+        return 1
+    today = datetime.now().date()
+    start_date = activity.start_time.date()
+    days_passed = (today - start_date).days
+    interval = activity.draw_interval_days or 1
+    return days_passed // interval + 1
+
+
+def get_next_round_date(activity: Activity) -> str:
+    """计算下轮抽奖日期"""
+    if not activity.start_time:
+        return None
+    today = datetime.now().date()
+    start_date = activity.start_time.date()
+    interval = activity.draw_interval_days or 1
+    current_round = get_current_round(activity)
+    next_round_start = start_date + timedelta(days=current_round * interval)
+    return next_round_start.strftime('%Y-%m-%d')
 
 
 @router.post("/draw", response_model=DrawResponse)
@@ -22,7 +46,7 @@ async def lottery_draw(
 ):
     """
     执行抽奖
-    每人每个活动只能抽一次
+    每人每个活动每轮只能抽一次
     """
     # 检查活动是否存在且进行中
     activity = db.query(Activity).filter(Activity.id == request.activity_id).first()
@@ -38,16 +62,20 @@ async def lottery_draw(
             detail="活动未开始或已结束"
         )
 
-    # 检查是否已参与过
+    # 计算当前轮次
+    current_round = get_current_round(activity)
+
+    # 检查当前轮次是否已抽奖
     existing_record = db.query(LotteryRecord).filter(
         LotteryRecord.user_id == current_user.id,
-        LotteryRecord.activity_id == request.activity_id
+        LotteryRecord.activity_id == request.activity_id,
+        LotteryRecord.round_number == current_round
     ).first()
 
     if existing_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="您已参与过本次活动"
+            detail="您的抽奖机会已用完，请等待下一轮抽奖"
         )
 
     # 获取奖品列表
@@ -64,7 +92,8 @@ async def lottery_draw(
         user_id=current_user.id,
         activity_id=request.activity_id,
         prize_id=won_prize.id if won_prize else None,
-        is_won=1 if is_won else 0
+        is_won=1 if is_won else 0,
+        round_number=current_round
     )
 
     # 扣减库存（谢谢惠顾也要扣减）
@@ -106,6 +135,7 @@ async def get_my_records(
             prize_id=record.prize_id,
             prize_name=prize.name if prize else None,
             is_won=bool(record.is_won),
+            round_number=record.round_number or 1,
             created_at=record.created_at
         ))
 
@@ -119,17 +149,34 @@ async def check_drawn(
     db: Session = Depends(get_db)
 ):
     """
-    检查是否已参与过某活动
+    检查是否已参与过某活动（当前轮次）
     """
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    if not activity:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="活动不存在"
+        )
+
+    current_round = get_current_round(activity)
+    next_round_date = get_next_round_date(activity)
+
     record = db.query(LotteryRecord).filter(
         LotteryRecord.user_id == current_user.id,
-        LotteryRecord.activity_id == activity_id
+        LotteryRecord.activity_id == activity_id,
+        LotteryRecord.round_number == current_round
     ).first()
 
     if not record:
-        return CheckResponse(has_drawn=False, record=None)
+        return CheckResponse(
+            has_drawn=False,
+            record=None,
+            round_info=RoundInfo(
+                current_round=current_round,
+                next_round_date=next_round_date
+            )
+        )
 
-    activity = db.query(Activity).filter(Activity.id == activity_id).first()
     prize = db.query(Prize).filter(Prize.id == record.prize_id).first() if record.prize_id else None
 
     return CheckResponse(
@@ -137,10 +184,15 @@ async def check_drawn(
         record=LotteryRecordResponse(
             id=record.id,
             activity_id=record.activity_id,
-            activity_title=activity.title if activity else None,
+            activity_title=activity.title,
             prize_id=record.prize_id,
             prize_name=prize.name if prize else None,
             is_won=bool(record.is_won),
+            round_number=record.round_number or 1,
             created_at=record.created_at
+        ),
+        round_info=RoundInfo(
+            current_round=current_round,
+            next_round_date=next_round_date
         )
     )

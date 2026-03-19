@@ -124,8 +124,9 @@ async function checkUserDrawn() {
     const res = await checkDrawn(activityId.value)
     if (res?.has_drawn) {
       uni.showToast({
-        title: '您已参与过本次活动',
-        icon: 'none'
+        title: '您的抽奖机会已用完，请等待下一轮抽奖',
+        icon: 'none',
+        duration: 2000
       })
     }
   } catch (e) {
