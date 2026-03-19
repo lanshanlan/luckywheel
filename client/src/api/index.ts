@@ -7,6 +7,7 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   data?: any
   header?: Record<string, string>
+  skipLoginWait?: boolean  // 跳过登录等待（用于登录接口本身）
 }
 
 interface ApiResponse<T = any> {
@@ -15,13 +16,28 @@ interface ApiResponse<T = any> {
   message: string
 }
 
+// 登录状态Promise，由App.vue中的autoLogin resolve
+let loginResolve: () => void
+export const loginReady = new Promise<void>((resolve) => {
+  loginResolve = resolve
+})
+
+// 当登录完成后调用此函数
+export function markLoginComplete() {
+  loginResolve()
+}
+
 // 获取存储的token
 function getToken(): string {
   return uni.getStorageSync('token') || ''
 }
 
 // 请求拦截
-function request<T = any>(options: RequestOptions): Promise<ApiResponse<T>> {
+async function request<T = any>(options: RequestOptions): Promise<ApiResponse<T>> {
+  // 等待登录完成（登录接口本身跳过等待）
+  if (!options.skipLoginWait) {
+    await loginReady
+  }
   return new Promise((resolve, reject) => {
     const token = getToken()
 

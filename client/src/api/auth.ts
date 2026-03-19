@@ -6,6 +6,7 @@ export function wxLogin(code: string) {
   return request({
     url: '/api/auth/login',
     method: 'POST',
-    data: { code }
+    data: { code },
+    skipLoginWait: true
   })
 }

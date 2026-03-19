@@ -3,6 +3,7 @@ import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { wxLogin,
   // devLogin
 } from '@/api/auth'
+import { markLoginComplete } from '@/api/index'
 
 // 是否为开发环境
 // const IS_DEV = false // 生产环境改为 false
@@ -26,6 +27,7 @@ async function autoLogin() {
   const token = uni.getStorageSync('token')
   if (token) {
     console.log('已有token，跳过登录')
+    markLoginComplete()
     return
   }
 
@@ -62,6 +64,8 @@ async function autoLogin() {
     }
   } catch (e) {
     console.error('自动登录失败', e)
+  } finally {
+    markLoginComplete()
   }
 }
 </script>
