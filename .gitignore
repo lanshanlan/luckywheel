@@ -30,6 +30,9 @@ env/
 .idea/
 .vscode/
 .claude/
+.qoder/
+.trae/
+.cursor/
 *.swp
 *.swo
 *~
