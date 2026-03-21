@@ -44,19 +44,49 @@
 
     <!-- 抽奖记录 -->
     <view v-if="activeTab === 'records'" class="tab-content">
-      <view class="record-list">
-        <view v-for="item in records" :key="item.id" class="record-item">
-          <view class="record-info">
-            <text class="record-activity">{{ item.activity_title }}</text>
-            <text class="record-time">{{ formatTime(item.created_at) }}</text>
+      <!-- 活动筛选器 -->
+      <view class="filter-section">
+        <picker :value="selectedActivityIndex" :range="activityFilterOptions" range-key="title" @change="onActivityFilterChange">
+          <view class="filter-picker">
+            <text class="filter-label">选择活动:</text>
+            <text class="filter-value">{{ activityFilterOptions[selectedActivityIndex]?.title || '全部活动' }}</text>
+            <text class="picker-arrow">▼</text>
           </view>
-          <view class="record-result">
-            <text v-if="item.is_won" class="won">{{ item.prize_name }}</text>
-            <text v-else class="not-won">未中奖</text>
-          </view>
+        </picker>
+      </view>
+
+      <!-- 统计信息卡片 -->
+      <view v-if="statistics" class="statistics-section">
+        <view class="stat-card">
+          <text class="stat-value">{{ statistics.total_draws }}</text>
+          <text class="stat-label">总抽奖</text>
+        </view>
+        <view class="stat-card">
+          <text class="stat-value">{{ statistics.win_count }}</text>
+          <text class="stat-label">中奖数</text>
+        </view>
+        <view class="stat-card">
+          <text class="stat-value">{{ (statistics.win_rate * 100).toFixed(2) }}%</text>
+          <text class="stat-label">中奖率</text>
         </view>
       </view>
-      <view v-if="records.length === 0" class="empty">
+
+      <!-- 记录列表 -->
+      <view class="record-list" @scrolltolower="loadMoreRecords">
+        <view v-for="item in records" :key="item.id" class="record-item">
+          <view class="record-header">
+            <text class="record-user">{{ item.user_nickname }}</text>
+            <text class="record-separator">-</text>
+            <text class="record-activity">{{ item.activity_title }}</text>
+          </view>
+          <text class="record-time">{{ formatTime(item.created_at) }}</text>
+          <text v-if="item.is_won" class="record-prize">奖品: {{ item.prize_name }}</text>
+          <text v-else class="record-no-prize">未中奖</text>
+        </view>
+        <view v-if="loading" class="loading-tip">加载中...</view>
+        <view v-if="!hasMore && records.length > 0" class="loading-tip">没有更多了</view>
+      </view>
+      <view v-if="records.length === 0 && !loading" class="empty">
         <text>暂无抽奖记录</text>
       </view>
     </view>
@@ -130,90 +160,93 @@
           <text class="prize-modal-subtitle">奖品管理</text>
         </view>
 
-        <!-- 添加奖品表单 -->
-        <view class="prize-form-section">
-          <view class="section-title">添加奖品</view>
-          <view class="prize-form-row">
-            <view class="form-group name-group">
-              <text class="form-label">奖品名称</text>
-              <input v-model="prizeForm.name" class="form-input" placeholder="请输入奖品名称" />
+        <!-- 可滚动内容区域：添加奖品表单 + 奖品列表 -->
+        <scroll-view class="prize-scroll-content" scroll-y>
+          <!-- 添加奖品表单 -->
+          <view class="prize-form-section">
+            <view class="section-title">添加奖品</view>
+            <view class="prize-form-row">
+              <view class="form-group name-group">
+                <text class="form-label">奖品名称</text>
+                <input v-model="prizeForm.name" class="form-input" placeholder="请输入奖品名称" />
+              </view>
             </view>
-          </view>
-          <view class="prize-form-row two-col">
-            <view class="form-group">
-              <text class="form-label">中奖概率 <text class="label-hint">(0-1之间)</text></text>
-              <input v-model="prizeForm.probability" class="form-input" type="text" placeholder="如 0.1" />
+            <view class="prize-form-row two-col">
+              <view class="form-group">
+                <text class="form-label">中奖概率 <text class="label-hint">(0-1之间)</text></text>
+                <input v-model="prizeForm.probability" class="form-input" type="text" placeholder="如 0.1" />
+              </view>
+              <view class="form-group">
+                <text class="form-label">库存数量</text>
+                <input v-model.number="prizeForm.stock" class="form-input" type="number" placeholder="库存" />
+              </view>
             </view>
-            <view class="form-group">
-              <text class="form-label">库存数量</text>
-              <input v-model.number="prizeForm.stock" class="form-input" type="number" placeholder="库存" />
-            </view>
-          </view>
-          <view class="prize-form-row">
-            <view class="form-group">
-              <text class="form-label">奖品类型</text>
-              <picker :value="prizeForm.prize_type" :range="prizeTypeOptions" range-key="label" @change="onPrizeTypeChange">
-                <view class="form-picker">
-                  <text>{{ prizeTypeOptions[prizeForm.prize_type].label }}</text>
-                  <text class="picker-arrow">▼</text>
-                </view>
-              </picker>
-            </view>
-          </view>
-          <view v-if="prizeForm.prize_type === 1" class="prize-form-row">
-            <view class="form-group">
-              <text class="form-label">心愿次数 <text class="label-hint">(抽N次必得)</text></text>
-              <input v-model.number="prizeForm.guarantee_count" class="form-input" type="number" placeholder="如 10" />
-            </view>
-          </view>
-          <button class="btn-add-prize" @click="handleAddPrize">+ 添加奖品</button>
-        </view>
-
-        <!-- 奖品列表 -->
-        <view class="prize-list-section">
-          <view class="section-header">
-            <text class="section-title">奖品列表</text>
-            <text class="prize-count">{{ prizes.length }} 个奖品</text>
-          </view>
-          <view v-if="prizes.length === 0" class="empty-list">
-            <text class="empty-icon">🎁</text>
-            <text class="empty-text">暂无奖品，快去添加吧</text>
-          </view>
-          <view v-else class="prize-cards">
-            <view v-for="(prize, index) in prizes" :key="prize.id" class="prize-card">
-              <view class="prize-card-left">
-                <view class="prize-index" :style="{ backgroundColor: getPrizeColor(index) }">{{ index + 1 }}</view>
-                <view class="prize-info-wrap">
-                  <view class="prize-name-row">
-                    <text class="prize-card-name">{{ prize.name }}</text>
-                    <text v-if="prize.prize_type === 1" class="mystery-badge">神秘大奖</text>
+            <view class="prize-form-row">
+              <view class="form-group full-width">
+                <text class="form-label">奖品类型</text>
+                <picker :value="prizeForm.prize_type" :range="prizeTypeOptions" range-key="label" @change="onPrizeTypeChange">
+                  <view class="form-picker">
+                    <text>{{ prizeTypeOptions[prizeForm.prize_type].label }}</text>
+                    <text class="picker-arrow">▼</text>
                   </view>
-                  <view class="prize-card-meta">
-                    <text class="meta-item">
-                      <text class="meta-value">{{ (prize.probability * 100).toFixed(2) }}%</text>
-                      <text class="meta-label">概率</text>
-                    </text>
-                    <text class="meta-divider">|</text>
-                    <text class="meta-item">
-                      <text class="meta-value">{{ prize.stock }}</text>
-                      <text class="meta-label">库存</text>
-                    </text>
-                    <template v-if="prize.prize_type === 1 && prize.guarantee_count > 0">
+                </picker>
+              </view>
+            </view>
+            <view v-if="prizeForm.prize_type === 1" class="prize-form-row two-col">
+              <view class="form-group">
+                <text class="form-label">心愿次数 <text class="label-hint">(抽N次必得)</text></text>
+                <input v-model.number="prizeForm.guarantee_count" class="form-input" type="number" placeholder="如 10" />
+              </view>
+            </view>
+            <button class="btn-add-prize" @click="handleAddPrize">+ 添加奖品</button>
+          </view>
+
+          <!-- 奖品列表 -->
+          <view class="prize-list-section">
+            <view class="section-header">
+              <text class="section-title">奖品列表</text>
+              <text class="prize-count">{{ sortedPrizes.length }} 个奖品</text>
+            </view>
+            <view v-if="sortedPrizes.length === 0" class="empty-list">
+              <text class="empty-icon">🎁</text>
+              <text class="empty-text">暂无奖品，快去添加吧</text>
+            </view>
+            <view v-else class="prize-cards">
+              <view v-for="(prize, index) in sortedPrizes" :key="prize.id" class="prize-card">
+                <view class="prize-card-left">
+                  <view class="prize-index" :style="{ backgroundColor: getPrizeColor(index) }">{{ index + 1 }}</view>
+                  <view class="prize-info-wrap">
+                    <view class="prize-name-row">
+                      <text class="prize-card-name">{{ prize.name }}</text>
+                      <text v-if="prize.prize_type === 1" class="mystery-badge">神秘大奖</text>
+                    </view>
+                    <view class="prize-card-meta">
+                      <text class="meta-item">
+                        <text class="meta-value">{{ (prize.probability * 100).toFixed(2) }}%</text>
+                        <text class="meta-label">概率</text>
+                      </text>
                       <text class="meta-divider">|</text>
                       <text class="meta-item">
-                        <text class="meta-value guarantee">{{ prize.guarantee_count }}次</text>
-                        <text class="meta-label">心愿</text>
+                        <text class="meta-value">{{ prize.stock }}</text>
+                        <text class="meta-label">库存</text>
                       </text>
-                    </template>
+                      <template v-if="prize.prize_type === 1 && prize.guarantee_count > 0">
+                        <text class="meta-divider">|</text>
+                        <text class="meta-item">
+                          <text class="meta-value guarantee">{{ prize.guarantee_count }}次</text>
+                          <text class="meta-label">心愿</text>
+                        </text>
+                      </template>
+                    </view>
                   </view>
                 </view>
-              </view>
-              <view class="delete-btn-wrap" @click="handleDeletePrize(prize.id)">
-                <text class="delete-icon">×</text>
+                <view class="delete-btn-wrap" @click="handleDeletePrize(prize.id)">
+                  <text class="delete-icon">×</text>
+                </view>
               </view>
             </view>
           </view>
-        </view>
+        </scroll-view>
 
         <view class="prize-modal-footer">
           <button class="btn-close-modal" @click="showPrizeModal = false">完成</button>
@@ -224,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import {
   checkAdmin,
@@ -233,7 +266,8 @@ import {
   deleteActivity,
   createPrize,
   deletePrize,
-  getAllRecords
+  getAllRecords,
+  getRecordsStatistics
 } from '@/api/admin'
 import { getActivityList, getActivityDetail } from '@/api/activity'
 
@@ -262,10 +296,20 @@ interface LotteryRecordItem {
   id: number
   activity_id: number
   activity_title: string
+  user_id?: number
+  user_nickname: string
   prize_id: number | null
   prize_name: string | null
   is_won: boolean
   created_at: string
+}
+
+interface ActivityStatistics {
+  total_draws: number
+  win_count: number
+  win_rate: number
+  activity_id?: number
+  activity_title?: string
 }
 
 const activeTab = ref<'activities' | 'records'>('activities')
@@ -273,10 +317,29 @@ const activities = ref<Activity[]>([])
 const records = ref<LotteryRecordItem[]>([])
 const prizes = ref<Prize[]>([])
 
+// 抽奖记录相关状态
+const selectedActivityId = ref<number | null>(null)  // 选中的活动ID，null表示全部
+const statistics = ref<ActivityStatistics | null>(null)  // 统计数据
+const page = ref(0)  // 当前页码
+const pageSize = ref(20)  // 每页数量
+const loading = ref(false)  // 加载中
+const hasMore = ref(true)  // 是否有更多数据
+
 const showCreateActivity = ref(false)
 const showPrizeModal = ref(false)
 const editingActivity = ref<Activity | null>(null)
 const currentActivity = ref<Activity | null>(null)
+
+// 排序后的奖品列表：神秘大奖排在最前面
+const sortedPrizes = computed(() => {
+  return [...prizes.value].sort((a, b) => {
+    // 神秘大奖 (prize_type === 1) 排在前面
+    if (a.prize_type === 1 && b.prize_type !== 1) return -1
+    if (a.prize_type !== 1 && b.prize_type === 1) return 1
+    // 相同类型保持原有顺序（稳定排序）
+    return 0
+  })
+})
 
 const activityForm = ref({
   title: '',
@@ -306,6 +369,17 @@ const statusOptions = [
   { label: '已结束', value: 2 }
 ]
 
+// 活动筛选器选项
+const activityFilterOptions = computed(() => {
+  return [{ id: null, title: '全部活动' }, ...activities.value.map(a => ({ id: a.id, title: a.title }))]
+})
+
+const selectedActivityIndex = computed(() => {
+  if (selectedActivityId.value === null) return 0
+  const idx = activities.value.findIndex(a => a.id === selectedActivityId.value)
+  return idx >= 0 ? idx + 1 : 0
+})
+
 onShow(() => {
   checkAdminPermission()
   loadData()
@@ -323,7 +397,7 @@ async function checkAdminPermission() {
 }
 
 async function loadData() {
-  await Promise.all([loadActivities(), loadRecords()])
+  await Promise.all([loadActivities(), loadRecords(), loadStatistics()])
 }
 
 async function loadActivities() {
@@ -337,11 +411,51 @@ async function loadActivities() {
 
 async function loadRecords() {
   try {
-    const res = await getAllRecords()
-    records.value = res || []
+    const res = await getAllRecords({
+      activityId: selectedActivityId.value || undefined,
+      limit: pageSize.value,
+      offset: page.value * pageSize.value
+    })
+    if (page.value === 0) {
+      records.value = res || []
+    } else {
+      records.value = [...records.value, ...(res || [])]
+    }
+    hasMore.value = (res || []).length >= pageSize.value
   } catch (e) {
     console.error('加载记录失败', e)
   }
+}
+
+async function loadStatistics() {
+  try {
+    const res = await getRecordsStatistics(selectedActivityId.value || undefined)
+    statistics.value = res
+  } catch (e) {
+    console.error('加载统计数据失败', e)
+  }
+}
+
+async function loadMoreRecords() {
+  if (loading.value || !hasMore.value) return
+  loading.value = true
+  page.value++
+  await loadRecords()
+  loading.value = false
+}
+
+async function onActivityFilterChange(e: any) {
+  const index = e.detail.value
+  if (index === 0) {
+    selectedActivityId.value = null
+  } else {
+    selectedActivityId.value = activities.value[index - 1].id
+  }
+  // 重置分页并重新加载
+  page.value = 0
+  records.value = []
+  hasMore.value = true
+  await Promise.all([loadRecords(), loadStatistics()])
 }
 
 function getStatusClass(status: number) {
@@ -628,15 +742,120 @@ async function handleDeletePrize(id: number) {
   border-color: #f56c6c;
 }
 
-.record-info {
+.empty {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999;
+}
+
+/* 筛选器样式 */
+.filter-section {
+  background: #fff;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.filter-picker {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  gap: 12rpx;
+}
+
+.filter-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.filter-value {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  flex: 1;
+}
+
+.filter-picker .picker-arrow {
+  font-size: 20rpx;
+  color: #999;
+}
+
+/* 统计卡片样式 */
+.statistics-section {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.stat-card {
+  flex: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12rpx;
+  padding: 24rpx 16rpx;
+  text-align: center;
+}
+
+.stat-card:nth-child(2) {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.stat-card:nth-child(3) {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.stat-value {
+  display: block;
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 8rpx;
+}
+
+.stat-label {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 加载提示 */
+.loading-tip {
+  text-align: center;
+  padding: 30rpx;
+  color: #999;
+  font-size: 26rpx;
+}
+
+/* 记录项样式 */
+.record-item {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
 }
 
+.record-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.record-user {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.record-separator {
+  font-size: 28rpx;
+  color: #999;
+}
+
 .record-activity {
   font-size: 28rpx;
-  color: #333;
+  color: #666;
 }
 
 .record-time {
@@ -644,22 +863,14 @@ async function handleDeletePrize(id: number) {
   color: #999;
 }
 
-.record-result {
-  text-align: right;
-}
-
-.won {
+.record-prize {
+  font-size: 28rpx;
   color: #FF6B35;
-  font-weight: bold;
+  font-weight: 500;
 }
 
-.not-won {
-  color: #999;
-}
-
-.empty {
-  text-align: center;
-  padding: 100rpx 0;
+.record-no-prize {
+  font-size: 28rpx;
   color: #999;
 }
 
@@ -859,12 +1070,18 @@ async function handleDeletePrize(id: number) {
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* 可滚动内容区域 */
+.prize-scroll-content {
+  flex: 1;
+  height: 0;
+  overflow-y: auto;
+}
+
 /* 表单区域 */
 .prize-form-section {
   padding: 30rpx;
   background: #FAFAFA;
   border-bottom: 1rpx solid #EEEEEE;
-  flex-shrink: 0;
 }
 
 .section-title {
@@ -894,6 +1111,10 @@ async function handleDeletePrize(id: number) {
 }
 
 .form-group.name-group {
+  width: 100%;
+}
+
+.form-group.full-width {
   width: 100%;
 }
 
@@ -959,8 +1180,6 @@ async function handleDeletePrize(id: number) {
 
 /* 奖品列表区域 */
 .prize-list-section {
-  flex: 1;
-  overflow-y: auto;
   padding: 24rpx 30rpx;
   background: #fff;
 }

@@ -12,7 +12,7 @@ from app.utils.security import get_current_user, get_current_admin
 from app.schemas.schemas import (
     ActivityCreate, ActivityUpdate, ActivityResponse,
     PrizeCreate, PrizeUpdate, PrizeResponse,
-    LotteryRecordResponse
+    LotteryRecordResponse, ActivityStatisticsResponse
 )
 
 router = APIRouter()
@@ -284,16 +284,19 @@ async def delete_prize(
 @router.get("/records", response_model=List[LotteryRecordResponse])
 async def get_all_records(
     activity_id: int = None,
+    limit: int = 20,
+    offset: int = 0,
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """查询所有抽奖记录（可按活动筛选）"""
+    """查询所有抽奖记录（可按活动筛选、分页）"""
     query = db.query(LotteryRecord)
 
     if activity_id:
         query = query.filter(LotteryRecord.activity_id == activity_id)
 
-    records = query.order_by(LotteryRecord.created_at.desc()).all()
+    total_count = query.count()
+    records = query.order_by(LotteryRecord.created_at.desc()).offset(offset).limit(limit).all()
 
     result = []
     for record in records:
@@ -301,10 +304,15 @@ async def get_all_records(
         activity = db.query(Activity).filter(Activity.id == record.activity_id).first()
         prize = db.query(Prize).filter(Prize.id == record.prize_id).first() if record.prize_id else None
 
+        # 处理用户昵称，为空时返回"佚名"
+        user_nickname = user.nickname if user and user.nickname else "佚名"
+
         result.append(LotteryRecordResponse(
             id=record.id,
             activity_id=record.activity_id,
             activity_title=activity.title if activity else None,
+            user_id=record.user_id,
+            user_nickname=user_nickname,
             prize_id=record.prize_id,
             prize_name=prize.name if prize else None,
             is_won=bool(record.is_won),
@@ -313,3 +321,32 @@ async def get_all_records(
         ))
 
     return result
+
+
+@router.get("/records/statistics", response_model=ActivityStatisticsResponse)
+async def get_records_statistics(
+    activity_id: int = None,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """获取抽奖记录统计数据"""
+    query = db.query(LotteryRecord)
+
+    if activity_id:
+        query = query.filter(LotteryRecord.activity_id == activity_id)
+        activity = db.query(Activity).filter(Activity.id == activity_id).first()
+        activity_title = activity.title if activity else None
+    else:
+        activity_title = None
+
+    total_count = query.count()
+    win_count = query.filter(LotteryRecord.is_won == True).count()
+    win_rate = win_count / total_count if total_count > 0 else 0.0
+
+    return ActivityStatisticsResponse(
+        total_draws=total_count,
+        win_count=win_count,
+        win_rate=round(win_rate, 4),
+        activity_id=activity_id,
+        activity_title=activity_title
+    )

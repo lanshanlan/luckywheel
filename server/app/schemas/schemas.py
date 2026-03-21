@@ -147,11 +147,25 @@ class LotteryRecordResponse(BaseModel):
     id: int
     activity_id: int
     activity_title: Optional[str] = None
+    user_id: Optional[int] = None       # 用户ID
+    user_nickname: str = "佚名"          # 用户昵称，默认为"佚名"
     prize_id: Optional[int] = None
     prize_name: Optional[str] = None
     is_won: bool
     round_number: int = 1
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ActivityStatisticsResponse(BaseModel):
+    """活动统计数据响应"""
+    total_draws: int          # 总抽奖次数
+    win_count: int            # 中奖次数
+    win_rate: float           # 中奖率（0-1之间）
+    activity_id: Optional[int] = None     # 活动ID
+    activity_title: Optional[str] = None  # 活动标题
 
     class Config:
         from_attributes = True

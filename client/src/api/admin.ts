@@ -95,10 +95,31 @@ export function deletePrize(id: number) {
 
 // ============ 抽奖记录管理 ============
 
-// 获取所有抽奖记录
-export function getAllRecords(activityId?: number) {
+// 获取所有抽奖记录（支持分页）
+export function getAllRecords(params: {
+  activityId?: number
+  limit?: number
+  offset?: number
+}) {
+  const queryParts: string[] = []
+  if (params.activityId) {
+    queryParts.push(`activity_id=${params.activityId}`)
+  }
+  if (params.limit) {
+    queryParts.push(`limit=${params.limit}`)
+  }
+  if (params.offset !== undefined) {
+    queryParts.push(`offset=${params.offset}`)
+  }
+  const queryString = queryParts.join('&')
+  const url = queryString ? `/api/admin/records?${queryString}` : '/api/admin/records'
+  return request({ url })
+}
+
+// 获取抽奖记录统计数据
+export function getRecordsStatistics(activityId?: number) {
   const url = activityId
-    ? `/api/admin/records?activity_id=${activityId}`
-    : '/api/admin/records'
+    ? `/api/admin/records/statistics?activity_id=${activityId}`
+    : '/api/admin/records/statistics'
   return request({ url })
 }
