@@ -769,3 +769,4 @@ curl http://你的域名/
 | 重启服务 | `systemctl restart luckywheel` |
 | 查看状态 | `systemctl status luckywheel` |
 | 更新代码 | `cd /var/www/luckywheel/ && git pull && systemctl restart luckywheel` |
+| 设管理员 | `UPDATE users SET is_admin = 1 WHERE nickname = 'xxx';` |
