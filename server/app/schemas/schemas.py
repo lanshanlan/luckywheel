@@ -75,6 +75,9 @@ class PrizeBase(BaseModel):
     probability: Decimal
     stock: int = 0
     sort_order: int = 0
+    # 新增字段
+    prize_type: int = 0  # 0-普通奖品，1-神秘大奖
+    guarantee_count: int = 0  # 心愿次数
 
 
 class PrizeCreate(PrizeBase):
@@ -87,6 +90,9 @@ class PrizeUpdate(BaseModel):
     probability: Optional[Decimal] = None
     stock: Optional[int] = None
     sort_order: Optional[int] = None
+    # 新增字段
+    prize_type: Optional[int] = None
+    guarantee_count: Optional[int] = None
 
 
 class PrizeResponse(PrizeBase):
@@ -107,6 +113,20 @@ class DrawResponse(BaseModel):
     is_won: bool
     prize: Optional[PrizeResponse] = None
     message: str
+    # 新增字段
+    is_guarantee_triggered: bool = False  # 是否触发了心愿达成
+
+
+class GuaranteeRecordResponse(BaseModel):
+    """心愿进度响应"""
+    prize_id: int
+    prize_name: str
+    guarantee_count: int  # 配置的心愿次数
+    current_count: int    # 当前已抽次数
+    remaining_count: int  # 距离心愿达成还需次数
+
+    class Config:
+        from_attributes = True
 
 
 class LotteryRecordResponse(BaseModel):

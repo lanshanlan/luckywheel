@@ -25,3 +25,11 @@ export function checkDrawn(activityId: number) {
     method: 'GET'
   })
 }
+
+// 获取心愿进度
+export function getGuaranteeProgress(activityId: number) {
+  return request({
+    url: `/api/lottery/guarantee/${activityId}`,
+    method: 'GET'
+  })
+}

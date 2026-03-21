@@ -149,6 +149,23 @@
               <input v-model.number="prizeForm.stock" class="form-input" type="number" placeholder="库存" />
             </view>
           </view>
+          <view class="prize-form-row">
+            <view class="form-group">
+              <text class="form-label">奖品类型</text>
+              <picker :value="prizeForm.prize_type" :range="prizeTypeOptions" range-key="label" @change="onPrizeTypeChange">
+                <view class="form-picker">
+                  <text>{{ prizeTypeOptions[prizeForm.prize_type].label }}</text>
+                  <text class="picker-arrow">▼</text>
+                </view>
+              </picker>
+            </view>
+          </view>
+          <view v-if="prizeForm.prize_type === 1" class="prize-form-row">
+            <view class="form-group">
+              <text class="form-label">心愿次数 <text class="label-hint">(抽N次必得)</text></text>
+              <input v-model.number="prizeForm.guarantee_count" class="form-input" type="number" placeholder="如 10" />
+            </view>
+          </view>
           <button class="btn-add-prize" @click="handleAddPrize">+ 添加奖品</button>
         </view>
 
@@ -167,7 +184,10 @@
               <view class="prize-card-left">
                 <view class="prize-index" :style="{ backgroundColor: getPrizeColor(index) }">{{ index + 1 }}</view>
                 <view class="prize-info-wrap">
-                  <text class="prize-card-name">{{ prize.name }}</text>
+                  <view class="prize-name-row">
+                    <text class="prize-card-name">{{ prize.name }}</text>
+                    <text v-if="prize.prize_type === 1" class="mystery-badge">神秘大奖</text>
+                  </view>
                   <view class="prize-card-meta">
                     <text class="meta-item">
                       <text class="meta-value">{{ (prize.probability * 100).toFixed(2) }}%</text>
@@ -178,6 +198,13 @@
                       <text class="meta-value">{{ prize.stock }}</text>
                       <text class="meta-label">库存</text>
                     </text>
+                    <template v-if="prize.prize_type === 1 && prize.guarantee_count > 0">
+                      <text class="meta-divider">|</text>
+                      <text class="meta-item">
+                        <text class="meta-value guarantee">{{ prize.guarantee_count }}次</text>
+                        <text class="meta-label">心愿</text>
+                      </text>
+                    </template>
                   </view>
                 </view>
               </view>
@@ -227,9 +254,11 @@ interface Prize {
   probability: number
   stock: number
   sort_order: number
+  prize_type: number    // 0-普通奖品，1-神秘大奖
+  guarantee_count: number // 心愿次数
 }
 
-interface Record {
+interface LotteryRecordItem {
   id: number
   activity_id: number
   activity_title: string
@@ -241,7 +270,7 @@ interface Record {
 
 const activeTab = ref<'activities' | 'records'>('activities')
 const activities = ref<Activity[]>([])
-const records = ref<Record[]>([])
+const records = ref<LotteryRecordItem[]>([])
 const prizes = ref<Prize[]>([])
 
 const showCreateActivity = ref(false)
@@ -261,8 +290,15 @@ const prizeForm = ref({
   name: '',
   probability: '',
   stock: 1,
-  sort_order: 0
+  sort_order: 0,
+  prize_type: 0,       // 0-普通奖品，1-神秘大奖
+  guarantee_count: 0   // 心愿次数
 })
+
+const prizeTypeOptions = [
+  { label: '普通奖品', value: 0 },
+  { label: '神秘大奖', value: 1 }
+]
 
 const statusOptions = [
   { label: '未开始', value: 0 },
@@ -350,6 +386,20 @@ function onStartDateChange(e: any) {
   activityForm.value.start_time = e.detail.value
 }
 
+function onPrizeTypeChange(e: any) {
+  // picker 返回的是字符串，需要转换为数字
+  prizeForm.value.prize_type = parseInt(e.detail.value)
+  if (prizeForm.value.prize_type === 1) {
+    // 切换为神秘大奖时，默认心愿次数为10
+    if (prizeForm.value.guarantee_count === 0) {
+      prizeForm.value.guarantee_count = 10
+    }
+  } else {
+    // 切换为普通奖品时清空心愿次数
+    prizeForm.value.guarantee_count = 0
+  }
+}
+
 function editActivity(activity: Activity) {
   editingActivity.value = activity
   activityForm.value = {
@@ -435,16 +485,24 @@ async function handleAddPrize() {
     return
   }
 
+  // 神秘大奖验证
+  if (prizeForm.value.prize_type === 1 && prizeForm.value.guarantee_count < 2) {
+    uni.showToast({ title: '心愿次数至少为2次', icon: 'none' })
+    return
+  }
+
   try {
     await createPrize({
       activity_id: currentActivity.value.id,
       name: prizeForm.value.name,
       probability: probability,
       stock: prizeForm.value.stock,
-      sort_order: prizeForm.value.sort_order
+      sort_order: prizeForm.value.sort_order,
+      prize_type: prizeForm.value.prize_type,
+      guarantee_count: prizeForm.value.guarantee_count
     })
     uni.showToast({ title: '添加成功', icon: 'success' })
-    prizeForm.value = { name: '', probability: '', stock: 1, sort_order: 0 }
+    prizeForm.value = { name: '', probability: '', stock: 1, sort_order: 0, prize_type: 0, guarantee_count: 0 }
 
     // 刷新奖品列表
     const res = await getActivityDetail(currentActivity.value.id)
@@ -866,6 +924,20 @@ async function handleDeletePrize(id: number) {
   border-color: #FF6B35;
 }
 
+.form-picker {
+  height: 76rpx;
+  padding: 0 24rpx;
+  background: #fff;
+  border: 2rpx solid #E0E0E0;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
 .btn-add-prize {
   width: 100%;
   height: 80rpx;
@@ -970,10 +1042,25 @@ async function handleDeletePrize(id: number) {
   font-size: 30rpx;
   font-weight: 500;
   color: #333;
-  margin-bottom: 8rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.prize-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.mystery-badge {
+  font-size: 20rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
 }
 
 .prize-card-meta {

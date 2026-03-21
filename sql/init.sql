@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS prizes (
     probability DECIMAL(5,4) NOT NULL COMMENT '中奖概率（0-1）',
     stock INT DEFAULT 0 COMMENT '库存数量',
     sort_order INT DEFAULT 0 COMMENT '轮盘显示顺序',
+    prize_type TINYINT DEFAULT 0 COMMENT '奖品类型：0-普通奖品，1-神秘大奖',
+    guarantee_count INT DEFAULT 0 COMMENT '心愿次数：0表示无心愿机制，>0表示抽N次必得',
     INDEX idx_activity (activity_id),
     CONSTRAINT fk_prize_activity FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='奖品表';
@@ -59,6 +61,21 @@ CREATE TABLE IF NOT EXISTS lottery_records (
     CONSTRAINT fk_record_activity FOREIGN KEY (activity_id) REFERENCES activities(id),
     CONSTRAINT fk_record_prize FOREIGN KEY (prize_id) REFERENCES prizes(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='抽奖记录表';
+
+-- 心愿计数表
+CREATE TABLE IF NOT EXISTS guarantee_records (
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    user_id INT NOT NULL COMMENT '用户ID',
+    activity_id INT NOT NULL COMMENT '活动ID',
+    prize_id INT NOT NULL COMMENT '神秘大奖ID',
+    current_count INT DEFAULT 0 COMMENT '当前已抽奖次数（未中该奖品）',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX idx_user_activity_prize (user_id, activity_id, prize_id),
+    CONSTRAINT fk_guarantee_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_guarantee_activity FOREIGN KEY (activity_id) REFERENCES activities(id),
+    CONSTRAINT fk_guarantee_prize FOREIGN KEY (prize_id) REFERENCES prizes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='心愿计数表';
 
 -- 插入测试数据
 
@@ -88,14 +105,18 @@ INSERT INTO prizes (activity_id, name, probability, stock, sort_order) VALUES
 (2, '谢谢惠顾', 0.9000, 5000, 4);
 
 -- ============================================
--- 2026.03.19 以下为增量更新语句（用于已有数据库升级）
+-- 数据库迁移说明
 -- ============================================
-
--- 多次抽奖功能：添加抽奖间隔字段
--- ALTER TABLE activities ADD COLUMN draw_interval_days INT DEFAULT 1 COMMENT '抽奖间隔天数';
-
--- 多次抽奖功能：添加轮次字段
--- ALTER TABLE lottery_records ADD COLUMN round_number INT DEFAULT 1 COMMENT '第几轮抽奖';
-
--- 更新历史抽奖记录的轮次
--- UPDATE lottery_records SET round_number = 1 WHERE round_number IS NULL;
+-- 如需升级已有数据库，请按顺序执行 sql/migrate_*.sql 迁移脚本：
+--
+-- 方式一：MySQL 命令行
+-- mysql -u root -p lucky_wheel < sql/migrate_multi_draw.sql
+-- mysql -u root -p lucky_wheel < sql/migrate_guarantee.sql
+--
+-- 方式二：MySQL 客户端内执行
+-- source /path/to/luckyWheel/sql/migrate_multi_draw.sql;
+-- source /path/to/luckyWheel/sql/migrate_guarantee.sql;
+--
+-- 迁移脚本列表：
+-- 1. migrate_multi_draw.sql: 多次抽奖功能（2026.03.19）
+-- 2. migrate_guarantee.sql: 心愿功能（2026.03.21）

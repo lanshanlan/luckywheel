@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.utils.database import get_db, User, Activity, Prize, LotteryRecord
+from app.utils.database import get_db, User, Activity, Prize, LotteryRecord, GuaranteeRecord
 from app.utils.security import get_current_user
 from app.schemas.schemas import (
-    DrawRequest, DrawResponse, LotteryRecordResponse, CheckResponse, PrizeResponse, RoundInfo
+    DrawRequest, DrawResponse, LotteryRecordResponse, CheckResponse, PrizeResponse, RoundInfo,
+    GuaranteeRecordResponse
 )
-from app.services.lottery_service import draw_prize
+from app.services.lottery_service import draw_prize, update_guarantee_counts, get_or_create_guarantee_record
 
 router = APIRouter()
 
@@ -45,7 +46,7 @@ async def lottery_draw(
     db: Session = Depends(get_db)
 ):
     """
-    执行抽奖
+    执行抽奖（支持心愿机制）
     每人每个活动每轮只能抽一次
     """
     # 检查活动是否存在且进行中
@@ -78,14 +79,23 @@ async def lottery_draw(
             detail="您的抽奖机会已用完，请等待下一轮抽奖"
         )
 
-    # 获取奖品列表
+    # 获取所有奖品列表（包括库存为0的神秘大奖，心愿功能可能需要）
     prizes = db.query(Prize).filter(
-        Prize.activity_id == request.activity_id,
-        Prize.stock > 0
+        Prize.activity_id == request.activity_id
     ).order_by(Prize.sort_order).all()
 
-    # 执行抽奖
-    won_prize, is_won = draw_prize(prizes)
+    # 执行抽奖（传入心愿相关参数）
+    won_prize, is_won, is_guarantee_triggered, progress_info = draw_prize(
+        prizes, db, current_user.id, request.activity_id
+    )
+
+    # 如果心愿触发但奖品库存为0，心愿失效，改为正常抽奖（排除无库存奖品）
+    if is_guarantee_triggered and won_prize and won_prize.stock <= 0:
+        # 心愿失效，重新正常抽奖
+        prizes_with_stock = [p for p in prizes if p.stock > 0]
+        won_prize, is_won, is_guarantee_triggered, progress_info = draw_prize(
+            prizes_with_stock, db, current_user.id, request.activity_id
+        )
 
     # 创建抽奖记录
     record = LotteryRecord(
@@ -101,13 +111,31 @@ async def lottery_draw(
         won_prize.stock -= 1
 
     db.add(record)
+
+    # 更新心愿计数
+    mystery_prizes = [p for p in prizes if p.prize_type == 1]
+    if mystery_prizes:
+        update_guarantee_counts(
+            db, current_user.id, request.activity_id,
+            mystery_prizes, won_prize, is_guarantee_triggered
+        )
+
     db.commit()
+
+    message = "恭喜中奖！"
+    if is_guarantee_triggered and is_won:
+        message = "恭喜心愿达成，获得神秘大奖！"
+    elif is_won:
+        message = "恭喜中奖！"
+    else:
+        message = "很遗憾，未中奖"
 
     return DrawResponse(
         success=True,
         is_won=is_won,
         prize=PrizeResponse.model_validate(won_prize) if won_prize else None,
-        message="恭喜中奖！" if is_won else "很遗憾，未中奖"
+        message=message,
+        is_guarantee_triggered=is_guarantee_triggered
     )
 
 
@@ -196,3 +224,35 @@ async def check_drawn(
             next_round_date=next_round_date
         )
     )
+
+
+@router.get("/guarantee/{activity_id}", response_model=List[GuaranteeRecordResponse])
+async def get_guarantee_progress(
+    activity_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取当前用户在某活动中的心愿进度
+    """
+    # 获取该活动的所有神秘大奖
+    mystery_prizes = db.query(Prize).filter(
+        Prize.activity_id == activity_id,
+        Prize.prize_type == 1,
+        Prize.guarantee_count > 0
+    ).all()
+
+    result = []
+    for prize in mystery_prizes:
+        record = get_or_create_guarantee_record(
+            db, current_user.id, activity_id, prize.id
+        )
+        result.append(GuaranteeRecordResponse(
+            prize_id=prize.id,
+            prize_name=prize.name,
+            guarantee_count=prize.guarantee_count,
+            current_count=record.current_count,
+            remaining_count=max(0, prize.guarantee_count - record.current_count - 1)
+        ))
+
+    return result

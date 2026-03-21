@@ -158,6 +158,13 @@ async def create_prize(
     if prize_data.name == THANKS_PRIZE_NAME:
         raise HTTPException(status_code=400, detail="系统会自动添加谢谢惠顾奖品，无需手动添加")
 
+    # 神秘大奖的验证
+    if prize_data.prize_type == 1:
+        if prize_data.guarantee_count <= 0:
+            raise HTTPException(status_code=400, detail="神秘大奖必须设置心愿次数")
+        if prize_data.guarantee_count < 2:
+            raise HTTPException(status_code=400, detail="心愿次数建议至少为2次")
+
     # 计算现有奖品（除谢谢惠顾外）的概率之和
     thanks_prize = get_thanks_prize(db, prize_data.activity_id)
     existing_prizes = db.query(Prize).filter(
@@ -179,7 +186,9 @@ async def create_prize(
         image_url=prize_data.image_url,
         probability=prize_data.probability,
         stock=prize_data.stock,
-        sort_order=prize_data.sort_order
+        sort_order=prize_data.sort_order,
+        prize_type=prize_data.prize_type,
+        guarantee_count=prize_data.guarantee_count
     )
     db.add(prize)
     db.commit()
@@ -206,6 +215,14 @@ async def update_prize(
     # 不允许修改谢谢惠顾的名称
     if prize.name == THANKS_PRIZE_NAME and prize_data.name and prize_data.name != THANKS_PRIZE_NAME:
         raise HTTPException(status_code=400, detail="不允许修改谢谢惠顾奖品的名称")
+
+    # 神秘大奖的验证
+    if prize_data.prize_type == 1:
+        guarantee_count = prize_data.guarantee_count if prize_data.guarantee_count is not None else prize.guarantee_count
+        if guarantee_count <= 0:
+            raise HTTPException(status_code=400, detail="神秘大奖必须设置心愿次数")
+        if guarantee_count < 2:
+            raise HTTPException(status_code=400, detail="心愿次数建议至少为2次")
 
     # 如果修改了概率，需要检查总概率是否超过1
     if prize_data.probability is not None and prize.name != THANKS_PRIZE_NAME:

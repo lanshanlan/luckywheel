@@ -21,6 +21,20 @@
       <text class="activity-desc">{{ activity.description }}</text>
     </view>
 
+    <!-- 心愿进度 -->
+    <view v-if="guaranteeProgress.length > 0" class="guarantee-section">
+      <view class="guarantee-title">🎯 心愿进度</view>
+      <view v-for="item in guaranteeProgress" :key="item.prize_id" class="guarantee-item">
+        <view class="guarantee-header">
+          <text class="guarantee-name">{{ item.prize_name }}</text>
+          <text class="guarantee-count">还需 {{ item.remaining_count + 1 }} 次</text>
+        </view>
+        <view class="guarantee-bar">
+          <view class="guarantee-progress" :style="{ width: (item.current_count / item.guarantee_count * 100) + '%' }"></view>
+        </view>
+      </view>
+    </view>
+
     <!-- 轮盘组件 -->
     <view class="wheel-container">
       <view class="wheel-outer-ring">
@@ -53,7 +67,11 @@
         <view class="result-icon" :class="isWon ? 'win' : 'lose'">
           <text class="icon-text">{{ isWon ? '🎉' : '😊' }}</text>
         </view>
-        <text class="result-title">{{ isWon ? '恭喜中奖！' : '很遗憾' }}</text>
+        <text class="result-title">
+          <template v-if="isGuaranteeTriggered">✨ 心愿达成！</template>
+          <template v-else-if="isWon">恭喜中奖！</template>
+          <template v-else>很遗憾</template>
+        </text>
         <text class="result-prize">{{ resultPrize }}</text>
         <view class="btn-close" @click="closeResult">
           <text>确定</text>
@@ -68,13 +86,15 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import LuckyWheel from '@/components/LuckyWheel/LuckyWheel.vue'
 import { getActivityDetail } from '@/api/activity'
-import { lotteryDraw, checkDrawn } from '@/api/lottery'
+import { lotteryDraw, checkDrawn, getGuaranteeProgress } from '@/api/lottery'
 
 interface Prize {
   id: number
   name: string
   probability: number
   sort_order: number
+  prize_type?: number
+  guarantee_count?: number
 }
 
 interface Activity {
@@ -82,6 +102,14 @@ interface Activity {
   title: string
   description: string
   prizes: Prize[]
+}
+
+interface GuaranteeProgress {
+  prize_id: number
+  prize_name: string
+  guarantee_count: number
+  current_count: number
+  remaining_count: number
 }
 
 const activityId = ref<number>(0)
@@ -97,6 +125,8 @@ const resultIndex = ref(-1)
 const showResult = ref(false)
 const isWon = ref(false)
 const resultPrize = ref('')
+const guaranteeProgress = ref<GuaranteeProgress[]>([])
+const isGuaranteeTriggered = ref(false)
 
 onShow(() => {
   const pages = getCurrentPages()
@@ -106,6 +136,7 @@ onShow(() => {
   if (activityId.value) {
     loadActivity()
     checkUserDrawn()
+    loadGuaranteeProgress()
   }
 })
 
@@ -134,6 +165,15 @@ async function checkUserDrawn() {
   }
 }
 
+async function loadGuaranteeProgress() {
+  try {
+    const res = await getGuaranteeProgress(activityId.value)
+    guaranteeProgress.value = res || []
+  } catch (e) {
+    console.error('获取心愿进度失败', e)
+  }
+}
+
 function handleStartClick() {
   if (spinning.value) return
   handleSpin()
@@ -146,6 +186,7 @@ async function handleSpin() {
   resultIndex.value = -1
   isWon.value = false
   resultPrize.value = ''
+  isGuaranteeTriggered.value = false
 
   try {
     const res = await lotteryDraw(activityId.value)
@@ -158,6 +199,7 @@ async function handleSpin() {
       // 根据后端返回的 is_won 判断是否真正中奖
       isWon.value = res.is_won
       resultPrize.value = res.prize.name
+      isGuaranteeTriggered.value = res.is_guarantee_triggered || false
     } else {
       // 异常情况，没有返回奖品，定位到谢谢惠顾
       const thanksIndex = prizes.value.findIndex(p => p.name.includes('谢谢') || p.name.includes('惠顾'))
@@ -167,9 +209,11 @@ async function handleSpin() {
     }
 
     // 动画持续4秒后显示结果
-    setTimeout(() => {
+    setTimeout(async () => {
       showResult.value = true
       spinning.value = false
+      // 刷新心愿进度
+      await loadGuaranteeProgress()
     }, 4000)
   } catch (e: any) {
     spinning.value = false
@@ -317,6 +361,62 @@ function closeResult() {
   display: block;
   font-size: 24rpx;
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* 心愿进度 */
+.guarantee-section {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 20rpx;
+  padding: 24rpx 30rpx;
+  margin-bottom: 30rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.guarantee-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 20rpx;
+}
+
+.guarantee-item {
+  margin-bottom: 16rpx;
+}
+
+.guarantee-item:last-child {
+  margin-bottom: 0;
+}
+
+.guarantee-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.guarantee-name {
+  font-size: 24rpx;
+  color: #fff;
+}
+
+.guarantee-count {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.guarantee-bar {
+  height: 12rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+
+.guarantee-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #FFD700 0%, #FFA500 100%);
+  border-radius: 6rpx;
+  transition: width 0.3s ease;
 }
 
 /* 轮盘容器 */

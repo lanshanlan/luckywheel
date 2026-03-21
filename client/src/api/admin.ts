@@ -58,6 +58,8 @@ export function createPrize(data: {
   probability: number
   stock: number
   sort_order?: number
+  prize_type?: number      // 0-普通奖品，1-神秘大奖
+  guarantee_count?: number // 心愿次数
 }) {
   return request({
     url: '/api/admin/prizes',
@@ -73,6 +75,8 @@ export function updatePrize(id: number, data: {
   probability?: number
   stock?: number
   sort_order?: number
+  prize_type?: number      // 0-普通奖品，1-神秘大奖
+  guarantee_count?: number // 心愿次数
 }) {
   return request({
     url: `/api/admin/prizes/${id}`,
