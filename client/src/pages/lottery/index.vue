@@ -24,15 +24,17 @@
     <!-- 心愿进度 -->
     <view v-if="guaranteeProgress.length > 0" class="guarantee-section">
       <view class="guarantee-title">🎯 心愿进度</view>
-      <view v-for="item in guaranteeProgress" :key="item.prize_id" class="guarantee-item">
-        <view class="guarantee-header">
-          <text class="guarantee-name">{{ item.prize_name }}</text>
-          <text class="guarantee-count">还需 {{ item.remaining_count + 1 }} 次</text>
+      <scroll-view class="guarantee-scroll" scroll-y :style="{ height: guaranteeProgress.length > 2 ? '120rpx' : 'auto' }">
+        <view v-for="item in guaranteeProgress" :key="item.prize_id" class="guarantee-item">
+          <view class="guarantee-header">
+            <text class="guarantee-name">{{ item.prize_name }}</text>
+            <text class="guarantee-count">还需 {{ item.remaining_count + 1 }} 次</text>
+          </view>
+          <view class="guarantee-bar">
+            <view class="guarantee-progress" :style="{ width: (item.current_count / item.guarantee_count * 100) + '%' }"></view>
+          </view>
         </view>
-        <view class="guarantee-bar">
-          <view class="guarantee-progress" :style="{ width: (item.current_count / item.guarantee_count * 100) + '%' }"></view>
-        </view>
-      </view>
+      </scroll-view>
     </view>
 
     <!-- 轮盘组件 -->
@@ -378,6 +380,10 @@ function closeResult() {
   font-weight: bold;
   color: #FFD700;
   margin-bottom: 20rpx;
+}
+
+.guarantee-scroll {
+  width: 100%;
 }
 
 .guarantee-item {
