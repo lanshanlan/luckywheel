@@ -770,3 +770,7 @@ curl http://你的域名/
 | 查看状态 | `systemctl status luckywheel` |
 | 更新代码 | `cd /var/www/luckywheel/ && git pull && systemctl restart luckywheel` |
 | 设管理员 | `UPDATE users SET is_admin = 1 WHERE nickname = 'xxx';` |
+
+| 本地前端 | `cd client && npm run dev:mp-weixin` |
+| 本地后端 | `cd server && uvicorn main:app --reload --port 8000` |
+| 前端构建 | `cd client && npm run build:mp-weixin` |
