@@ -14,9 +14,23 @@ class UserCreate(UserBase):
     openid: str
 
 
+class UserUpdate(BaseModel):
+    nickname: Optional[str] = None
+
+
 class UserResponse(UserBase):
     id: int
     openid: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserProfileResponse(BaseModel):
+    id: int
+    nickname: Optional[str] = None
+    avatar_url: Optional[str] = None
     created_at: datetime
 
     class Config:

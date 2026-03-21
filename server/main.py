@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, activity, lottery, admin
+from app.api import auth, activity, lottery, admin, user
 from app.utils.database import engine, Base
 
 app = FastAPI(
@@ -27,6 +27,7 @@ async def startup_event():
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/auth", tags=["用户认证"])
+app.include_router(user.router, prefix="/api/user", tags=["用户信息"])
 app.include_router(activity.router, prefix="/api/activities", tags=["活动"])
 app.include_router(lottery.router, prefix="/api/lottery", tags=["抽奖"])
 app.include_router(admin.router, prefix="/api/admin", tags=["管理"])
